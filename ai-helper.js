@@ -28,6 +28,13 @@ async function callLlm(instructions,input){
   if(!response.ok)throw new Error(data?.error?.message||'Upstage API 요청에 실패했습니다.');
   return data.choices?.[0]?.message?.content||'요약 결과를 읽지 못했습니다.';
 }
+const ASSIST_PROMPTS={
+  order:'당신은 초등 교사의 수업 보조자입니다. 익명 담벼락을 읽고 학생을 평가·서열화하지 마세요. 출석번호·이름·닉네임을 추정하거나 만들지 마세요. 질문 수만 따르지 말고 주제 다양성과 아직 다루지 않은 경험을 고려해 발표 후보 3개를 제안하세요. 각 후보는 글의 첫 12자 이내 인용과 한 문장 이유로 씁니다. 최종 선택은 교사에게 있다고 덧붙이세요.',
+  followup:'당신은 초등 교사의 수업 보조자입니다. 선택된 글이 있다면 그 글을 바탕으로, 없다면 활동 전체를 바탕으로 발표 뒤 자연스럽게 이어 갈 열린 질문 3개를 만드세요. 사실 확인·평가·경쟁이 아닌 경험과 느낌을 듣는 말투로 작성하세요. 학생의 이름·출석번호·색을 언급하지 마세요.',
+  diversity:'당신은 초등 교사의 수업 보조자입니다. 질문들의 반복되는 표현과 아직 적은 질문 방향을 간단히 살피세요. 학급이나 개인을 점수화하지 말고, 교사가 학생에게 제안할 수 있는 새로운 질문 방향 3가지를 한 줄씩 제시하세요.',
+  guide:'당신은 초등 교사의 수업 보조자입니다. 현재 활동 단계에 맞는 1~2문장짜리 따뜻하고 짧은 교사 안내 문구를 만드세요. 특정 학생을 지목하거나 경쟁을 유도하지 마세요.',
+  safety:'당신은 초등 교사의 수업 보조자입니다. 글에서 개인정보 노출, 놀림·배제, 자해·위험 신호처럼 교사가 검토할 만한 표현만 조심스럽게 찾아 요약하세요. 애매한 내용은 문제라고 단정하지 말고 "교사 확인 권장"으로 표현하세요. 학생을 공개적으로 지목하거나 자동 삭제를 권하지 마세요. 해당 표현이 없다면 "지금 확인할 표현은 보이지 않음"이라고 답하세요.'
+};
 
 const server=http.createServer(async(req,res)=>{
   const origin=req.headers.origin;
@@ -47,6 +54,13 @@ const server=http.createServer(async(req,res)=>{
     if(req.method==='POST'&&req.url==='/summary'){
       if(origin!==ALLOWED_ORIGIN)return send(res,403,{error:'담벼락 교사 화면에서만 사용할 수 있습니다.'},origin);
       const result=await callLlm('당신은 초등 교사의 수업 보조자입니다. 제공된 익명 담벼락만 읽고, 학생을 평가·서열화하지 마세요. 출석번호·이름·닉네임을 추정하거나 만들지 마세요. 교사가 수업 중 바로 읽을 수 있게 3문장 이내로 현재 주제와 질문 참여 양상을 따뜻하게 요약하고, 다음 진행 제안 1가지를 덧붙이세요.',body);
+      return send(res,200,{result},origin);
+    }
+    if(req.method==='POST'&&req.url==='/assist'){
+      if(origin!==ALLOWED_ORIGIN)return send(res,403,{error:'담벼락 교사 화면에서만 사용할 수 있습니다.'},origin);
+      const instructions=ASSIST_PROMPTS[body.mode];
+      if(!instructions)throw new Error('지원하지 않는 AI 기능입니다.');
+      const result=await callLlm(instructions,body.activity||{});
       return send(res,200,{result},origin);
     }
     return send(res,404,{error:'없는 요청입니다.'},origin);

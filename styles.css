@@ -12,6 +12,7 @@
 .ai-helper-panel { display:flex; align-items:center; justify-content:space-between; gap:18px; padding:16px 18px; margin:0 0 24px; border:1px solid #d8d1f5; border-radius:18px; background:#f7f4ff; }
 .ai-helper-panel strong,.ai-helper-panel small { display:block; }.ai-helper-panel small { margin-top:4px; color:#67627d; }.ai-helper-panel .actions { margin:0; flex-wrap:wrap; justify-content:flex-end; }
 .ai-helper-panel a.btn { display:inline-flex; align-items:center; justify-content:center; text-decoration:none; }
+.ai-feature-actions { display:flex; flex-wrap:wrap; gap:8px; grid-column:1/-1; }.ai-feature-actions .btn { padding:9px 12px; font-size:.9rem; }
 .ai-status-pill { display:inline-block; margin-left:7px; padding:4px 9px; border-radius:999px; font-size:.8rem; vertical-align:middle; background:#ebeaf0; color:#5f5a68; }.ai-status-pill[data-state="ready"] { background:#dff5e8; color:#167347; }.ai-status-pill[data-state="setup"],.ai-status-pill[data-state="checking"] { background:#fff0c9; color:#8a5b00; }.ai-status-pill[data-state="offline"] { background:#f5e4e8; color:#a02747; }
 * { box-sizing:border-box; }
 html { -webkit-text-size-adjust:100%; }
