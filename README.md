@@ -2,8 +2,8 @@
 
 생각을 포스트잇으로 붙이고, 궁금한 글에 익명 질문을 남기는 실시간 교실 활동 웹앱입니다. 학생은 출석 번호와 색 닉네임으로 참여하고, 교사는 담벼락의 진행 단계·발표 순서·색 공개를 제어합니다.
 
-- 서비스: <https://joon0noh.github.io/sticker-wall/>
-- 17명 테스트 장면: <https://joon0noh.github.io/sticker-wall/?test=17>
+- 서비스: <https://joonssem.github.io/sticker-wall/>
+- 17명 테스트 장면: <https://joonssem.github.io/sticker-wall/?test=17>
 
 ## 활동 흐름
 
@@ -28,7 +28,7 @@
 
 실시간 AI 기능은 Firebase나 GitHub에 API 키를 저장하지 않습니다. 교사 컴퓨터에서만 작은 도우미를 실행하고, 키는 실행 중인 메모리에만 둡니다.
 
-1. 교사 컴퓨터에서 이 저장소 폴더를 열고 `node ai-helper.js`를 실행합니다.
+1. 교사 컴퓨터에서 이 저장소 폴더의 `AI-도우미-시작.cmd`를 두 번 클릭하거나, 터미널에서 `node ai-helper.js`를 실행합니다. 컴퓨터를 다시 켠 뒤에는 이 과정을 다시 해야 합니다.
 2. 브라우저에서 <http://127.0.0.1:8787>을 열어 Upstage API 키와 모델 이름(기본값: `solar-pro3`)을 입력한 뒤 연결을 테스트합니다.
 3. 교사 로그인 상태의 담벼락에서 `연결 새로고침`을 누릅니다.
 4. `실시간 활동 요약`을 선택하면 출석번호·색 닉네임·Firebase UID를 제외한 포스트잇과 질문 텍스트만 AI 도우미로 전달됩니다.
