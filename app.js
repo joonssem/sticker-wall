@@ -29,6 +29,7 @@ let testRevealIds=new Set();
 let sortMode="questions";
 let teacherCreateOpen=false, editingPostId=null;
 let roomUnsubscribe=null;
+let teacherBoardsUnsubscribe=null, teacherRecordsUnsubscribe=null;
 const AI_HELPER_URL='http://127.0.0.1:8787';
 
 function esc(s=""){return String(s).replace(/[&<>\"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));}
@@ -78,15 +79,27 @@ async function boot(){
     const fb=initializeApp(firebaseConfig); db=getDatabase(fb); auth=getAuth(fb);
     onAuthStateChanged(auth,async user=>{
       if(!user) { signInAnonymously(auth); return; }
+      stopRealtimeListeners();
       teacher=user.uid===TEACHER_UID;
       if(!teacher) my={...loadSession(),uid:user.uid};
-      if(teacher) onValue(ref(db,`teacherBoards/${TEACHER_UID}`),snap=>{teacherBoards=snap.val()||{};render();});
-      if(teacher && ROOM_ID) onValue(ref(db,`teacherRecords/${ROOM_ID}/participants`),snap=>{teacherRecords=snap.val()||{};render();});
+      if(teacher) startTeacherListeners();
       if(ROOM_ID) await connectRoom(user);
       render();
     });
     my=loadSession(); render();
   } catch { renderConfig(); }
+}
+function stopRealtimeListeners(){
+  roomUnsubscribe?.();
+  teacherBoardsUnsubscribe?.();
+  teacherRecordsUnsubscribe?.();
+  roomUnsubscribe=null;
+  teacherBoardsUnsubscribe=null;
+  teacherRecordsUnsubscribe=null;
+}
+function startTeacherListeners(){
+  teacherBoardsUnsubscribe=onValue(ref(db,`teacherBoards/${TEACHER_UID}`),snap=>{teacherBoards=snap.val()||{};render();});
+  if(ROOM_ID) teacherRecordsUnsubscribe=onValue(ref(db,`teacherRecords/${ROOM_ID}/participants`),snap=>{teacherRecords=snap.val()||{};render();});
 }
 function listenRoom(){
   if(roomUnsubscribe) return;
@@ -180,4 +193,3 @@ function teacherSticky(p){const active=Boolean(room.revealedPostIds?.[p.id]||roo
 function phaseLabel(){return ({join:"입장 대기",writing:"포스트잇 작성",voting:"전체 공개·질문",presenting:"발표 진행"})[phase()]||"입장 대기";}
 function download(){const attendanceOf=uid=>teacherRecords[uid]?.attendance||null;const posts=postEntries().map(post=>({postId:post.id,authorAttendance:attendanceOf(post.authorId),authorColor:color(post.authorColorId).name,text:post.text,createdAt:post.createdAt||null,questions:Object.entries(post.questions||{}).map(([questionId,question])=>({questionId,text:question.text||'',questionerAttendance:attendanceOf(question.authorId),createdAt:question.createdAt||null,answers:Object.entries(question.answers||{}).map(([answerId,answer])=>({answerId,text:answer.text||'',answererAttendance:attendanceOf(answer.authorId),createdAt:answer.createdAt||null}))}))}));const data={schemaVersion:3,exportedAt:new Date().toISOString(),activity:{roomId:ROOM_ID,title:room.title||'스티커 담벼락',phase:phase(),settings:{maxPosts:maxPosts(),minQuestions:minQuestions(),maxQuestions:maxQuestions(),maxAnswersPerQuestion:2}},analysis:{participants:Object.values(teacherRecords).map(p=>({attendance:p.attendance||null,color:color(p.colorId).name,joinedAt:p.joinedAt||null})),posts},room,teacherRecords};const title=(room.title||'스티커-담벼락').trim().replace(/[\\/:*?"<>|]/g,'-').replace(/\s+/g,' ').slice(0,80)||'스티커-담벼락';const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:"application/json"}));a.download=`${title}.json`;a.click();URL.revokeObjectURL(a.href);}
 boot();
-
