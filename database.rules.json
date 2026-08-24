@@ -2,28 +2,29 @@
   "rules": {
     "rooms": {
       "$room": {
-        ".read": "auth != null",
+        ".read": "auth != null && (auth.uid === 'Z6WEsEFSTBbq6eeIF3E0RaBGoQZ2' || data.child('accessMode').val() !== 'members-v1' || root.child('roomMembers').child($room).child(auth.uid).exists())",
         ".write": "auth != null && auth.uid === 'Z6WEsEFSTBbq6eeIF3E0RaBGoQZ2'",
-        "phase": { ".write": "auth != null && auth.uid === 'Z6WEsEFSTBbq6eeIF3E0RaBGoQZ2'" },
-        "selectedPostId": { ".write": "auth != null && auth.uid === 'Z6WEsEFSTBbq6eeIF3E0RaBGoQZ2'" },
-        "showAttendance": { ".write": "auth != null && auth.uid === 'Z6WEsEFSTBbq6eeIF3E0RaBGoQZ2'" },
         "colorLocks": {
           "$color": {
-            ".write": "auth != null && ((!data.exists() && newData.val() === auth.uid) || auth.uid === 'Z6WEsEFSTBbq6eeIF3E0RaBGoQZ2')"
+            ".write": "auth != null && (root.child('rooms').child($room).child('accessMode').val() !== 'members-v1' || root.child('roomMembers').child($room).child(auth.uid).exists()) && ((!data.exists() && newData.val() === auth.uid) || auth.uid === 'Z6WEsEFSTBbq6eeIF3E0RaBGoQZ2')"
           }
         },
         "posts": {
           "$post": {
-            ".write": "auth != null && ((!data.exists() && newData.child('authorId').val() === auth.uid) || (data.exists() && data.child('authorId').val() === auth.uid && (!newData.exists() || (newData.child('authorId').val() === auth.uid && newData.child('authorColorId').val() === data.child('authorColorId').val()))) || auth.uid === 'Z6WEsEFSTBbq6eeIF3E0RaBGoQZ2')",
+            ".write": "auth != null && (root.child('rooms').child($room).child('accessMode').val() !== 'members-v1' || root.child('roomMembers').child($room).child(auth.uid).exists()) && ((!data.exists() && newData.child('authorId').val() === auth.uid && root.child('rooms').child($room).child('phase').val() === 'writing') || (!newData.exists() && data.child('authorId').val() === auth.uid))",
             ".validate": "newData.hasChildren(['authorId','authorColorId','text','createdAt'])",
+            "text": {
+              ".write": "auth != null && (root.child('rooms').child($room).child('accessMode').val() !== 'members-v1' || root.child('roomMembers').child($room).child(auth.uid).exists()) && data.parent().child('authorId').val() === auth.uid && root.child('rooms').child($room).child('phase').val() === 'writing'",
+              ".validate": "newData.isString() && newData.val().length <= 80"
+            },
             "questions": {
               "$question": {
-                ".write": "auth != null && !data.exists() && newData.child('authorId').val() === auth.uid",
-                ".validate": "newData.hasChildren(['text','authorId','createdAt'])",
+                ".write": "auth != null && (root.child('rooms').child($room).child('accessMode').val() !== 'members-v1' || root.child('roomMembers').child($room).child(auth.uid).exists()) && !data.exists() && newData.child('authorId').val() === auth.uid && root.child('rooms').child($room).child('phase').val() === 'voting'",
+                ".validate": "newData.hasChildren(['text','authorId','createdAt']) && newData.child('text').isString() && newData.child('text').val().length <= 80",
                 "answers": {
                   "$answer": {
-                    ".write": "auth != null && !data.exists() && newData.child('authorId').val() === auth.uid",
-                    ".validate": "newData.hasChildren(['text','authorId','createdAt'])"
+                    ".write": "auth != null && (root.child('rooms').child($room).child('accessMode').val() !== 'members-v1' || root.child('roomMembers').child($room).child(auth.uid).exists()) && !data.exists() && newData.child('authorId').val() === auth.uid && newData.parent().parent().child('authorId').val() !== auth.uid && (root.child('rooms').child($room).child('accessMode').val() !== 'members-v1' || $answer === 'slot-1' || $answer === 'slot-2') && root.child('rooms').child($room).child('phase').val() === 'voting'",
+                    ".validate": "newData.hasChildren(['text','authorId','createdAt']) && newData.child('text').isString() && newData.child('text').val().length <= 80"
                   }
                 }
               }
@@ -32,13 +33,26 @@
         }
       }
     },
+    "roomMembers": {
+      "$room": {
+        "$uid": {
+          ".read": "auth != null && auth.uid === 'Z6WEsEFSTBbq6eeIF3E0RaBGoQZ2'",
+          ".write": "auth != null && ((auth.uid === $uid && !data.exists() && newData.child('joinCode').val() === root.child('roomInvites').child($room).child('joinCode').val()) || auth.uid === 'Z6WEsEFSTBbq6eeIF3E0RaBGoQZ2')"
+        }
+      }
+    },
+    "roomInvites": {
+      "$room": {
+        ".read": "auth != null && auth.uid === 'Z6WEsEFSTBbq6eeIF3E0RaBGoQZ2'",
+        ".write": "auth != null && auth.uid === 'Z6WEsEFSTBbq6eeIF3E0RaBGoQZ2'"
+      }
+    },
     "teacherRecords": {
       "$room": {
+        ".read": "auth != null && auth.uid === 'Z6WEsEFSTBbq6eeIF3E0RaBGoQZ2'",
         "participants": {
-          ".read": "auth != null && auth.uid === 'Z6WEsEFSTBbq6eeIF3E0RaBGoQZ2'",
           "$uid": {
-            ".read": "auth != null && auth.uid === 'Z6WEsEFSTBbq6eeIF3E0RaBGoQZ2'",
-            ".write": "auth != null && (auth.uid === $uid || auth.uid === 'Z6WEsEFSTBbq6eeIF3E0RaBGoQZ2')"
+            ".write": "auth != null && ((auth.uid === $uid && !data.exists() && newData.hasChildren(['attendance','colorId','joinedAt'])) || auth.uid === 'Z6WEsEFSTBbq6eeIF3E0RaBGoQZ2')"
           }
         }
       }
