@@ -23,7 +23,8 @@ function allowed(origin){return !origin||origin===`http://${HOST}:${PORT}`||orig
 function readJson(req){return new Promise((resolve,reject)=>{let body='';req.on('data',chunk=>{body+=chunk;if(body.length>250000)req.destroy();});req.on('end',()=>{try{resolve(JSON.parse(body||'{}'));}catch{reject(new Error('JSON 형식이 아닙니다.'));}});req.on('error',reject);});}
 async function callLlm(instructions,input){
   if(!config.apiKey||!config.model)throw new Error('먼저 로컬 AI 도우미 설정 화면에서 API 키와 모델을 연결하세요.');
-  const response=await fetch('https://api.upstage.ai/v1/chat/completions',{method:'POST',headers:{'content-type':'application/json',authorization:`Bearer ${config.apiKey}`},body:JSON.stringify({model:config.model,messages:[{role:'system',content:instructions},{role:'user',content:JSON.stringify(input)}],max_tokens:700,stream:false})});
+  const formatRule=' 출력은 일반 텍스트로만 작성하세요. Markdown 제목 기호(#), 굵게 표시 기호(**), 표를 사용하지 마세요.';
+  const response=await fetch('https://api.upstage.ai/v1/chat/completions',{method:'POST',headers:{'content-type':'application/json',authorization:`Bearer ${config.apiKey}`},body:JSON.stringify({model:config.model,messages:[{role:'system',content:instructions+formatRule},{role:'user',content:JSON.stringify(input)}],max_tokens:700,stream:false})});
   const data=await response.json();
   if(!response.ok)throw new Error(data?.error?.message||'Upstage API 요청에 실패했습니다.');
   return data.choices?.[0]?.message?.content||'요약 결과를 읽지 못했습니다.';
