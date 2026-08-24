@@ -16,7 +16,18 @@
           "$post": {
             ".write": "auth != null && ((!data.exists() && newData.child('authorId').val() === auth.uid) || (data.exists() && data.child('authorId').val() === auth.uid && (!newData.exists() || (newData.child('authorId').val() === auth.uid && newData.child('authorColorId').val() === data.child('authorColorId').val()))) || auth.uid === 'Z6WEsEFSTBbq6eeIF3E0RaBGoQZ2')",
             ".validate": "newData.hasChildren(['authorId','authorColorId','text','createdAt'])",
-            "questions": { "$question": { ".write": "auth != null && !data.exists()" } }
+            "questions": {
+              "$question": {
+                ".write": "auth != null && !data.exists() && newData.child('authorId').val() === auth.uid",
+                ".validate": "newData.hasChildren(['text','authorId','createdAt'])",
+                "answers": {
+                  "$answer": {
+                    ".write": "auth != null && !data.exists() && newData.child('authorId').val() === auth.uid && newData.parent().numChildren() < 2 && newData.parent().parent().child('authorId').val() !== auth.uid",
+                    ".validate": "newData.hasChildren(['text','authorId','createdAt'])"
+                  }
+                }
+              }
+            }
           }
         }
       }
