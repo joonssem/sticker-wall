@@ -15,9 +15,9 @@ const ROOM_ID = new URLSearchParams(location.search).get("room")?.trim();
 const TEST_MODE = new URLSearchParams(location.search).get("test")==="17";
 const TEACHER_UID = "Z6WEsEFSTBbq6eeIF3E0RaBGoQZ2";
 const MAX_POSTS=3, MAX_LENGTH=80, MAX_QUESTIONS=5;
-// Firebase 규칙을 게시하고 별도 테스트를 마친 뒤에만 true로 바꿉니다.
-// false인 동안에는 기존 담벼락과 동일한 방식으로 작동합니다.
-const SECURE_ROOM_ROLLOUT=false;
+// 새 담벼락에는 참여코드를 확인한 사용자만 접근하는 보안 방식을 적용합니다.
+// 기존 담벼락은 그대로 작동합니다.
+const SECURE_ROOM_ROLLOUT=true;
 const appEl=document.querySelector("#app");
 let db, auth, room={}, teacherRecords={}, teacherBoards={}, my={};
 let selectedColor=null, teacher=false, selectedPost=null;
