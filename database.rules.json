@@ -22,7 +22,7 @@
                 ".validate": "newData.hasChildren(['text','authorId','createdAt'])",
                 "answers": {
                   "$answer": {
-                    ".write": "auth != null && !data.exists() && newData.child('authorId').val() === auth.uid && newData.parent().numChildren() < 2 && newData.parent().parent().child('authorId').val() !== auth.uid",
+                    ".write": "auth != null && !data.exists() && newData.child('authorId').val() === auth.uid",
                     ".validate": "newData.hasChildren(['text','authorId','createdAt'])"
                   }
                 }
