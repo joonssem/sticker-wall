@@ -17,7 +17,8 @@ const TEACHER_UID = "Z6WEsEFSTBbq6eeIF3E0RaBGoQZ2";
 const MAX_POSTS=3, MAX_LENGTH=80, MAX_QUESTIONS=5;
 // 회원 등록 규칙의 실사용 검증이 끝날 때까지 새 담벼락은 기존 방식으로 만듭니다.
 // 기존 담벼락과 새 담벼락의 수업 참여가 막히지 않도록 하는 안전 장치입니다.
-const SECURE_ROOM_ROLLOUT=false;
+// 새 담벼락은 참여코드로 등록된 학생만 접근하도록 만듭니다.
+const SECURE_ROOM_ROLLOUT=true;
 const appEl=document.querySelector("#app");
 let db, auth, room={}, teacherRecords={}, teacherBoards={}, my={};
 let selectedColor=null, teacher=false, selectedPost=null;
