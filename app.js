@@ -140,7 +140,28 @@ function renderRoomRequired(){
  document.querySelector('#open-teacher-login').onclick=renderLogin;
  document.querySelector('#enter-room').onclick=enterRoom;
 }
-async function enterRoom(){const code=document.querySelector('#room-code').value.trim().toUpperCase();const msg=document.querySelector('#room-code-message');if(!/^STICKER-[A-Z0-9]{4,10}$/.test(code)) return msg.innerHTML='<p class="error">참여코드 형식을 확인해 주세요.</p>';try{const snap=await get(ref(db,`rooms/${code}`));if(!snap.exists()) return msg.innerHTML='<p class="error">열린 담벼락을 찾지 못했어요. 코드를 다시 확인해 주세요.</p>';location.assign(roomUrl(code));}catch{if(!auth.currentUser)return msg.innerHTML='<p class="error">잠시 후 다시 시도해 주세요.</p>';try{await enrollRoomMember(auth.currentUser,code);location.assign(roomUrl(code));}catch{msg.innerHTML='<p class="error">열린 담벼락을 찾지 못했어요. 참여코드를 다시 확인해 주세요.</p>';}}}
+async function enterRoom(){
+  const code=document.querySelector('#room-code').value.trim().toUpperCase();
+  const msg=document.querySelector('#room-code-message');
+  if(!/^STICKER-[A-Z0-9]{4,10}$/.test(code)) return msg.innerHTML='<p class="error">참여코드 형식을 확인해 주세요.</p>';
+  try{
+    const snap=await get(ref(db,`rooms/${code}`));
+    if(!snap.exists()) return msg.innerHTML='<p class="error">열린 담벼락을 찾지 못했어요. 코드를 다시 확인해 주세요.</p>';
+    location.assign(roomUrl(code));
+  }catch(error){
+    // members-v1 담벼락은 아직 등록되지 않은 사용자의 읽기를 Firebase 규칙에서 막습니다.
+    // 이때 발생하는 permission-denied는 오류가 아니라 "참여 등록이 필요하다"는 정상 신호이므로
+    // 여기서 참여자 등록을 시도합니다. 그 외의 오류(네트워크 등)는 등록을 시도하지 않고 바로 안내합니다.
+    if(!/permission|denied/i.test(error?.code||error?.message||'')) return msg.innerHTML='<p class="error">잠시 후 다시 시도해 주세요.</p>';
+    if(!auth.currentUser) return msg.innerHTML='<p class="error">잠시 후 다시 시도해 주세요.</p>';
+    try{
+      await enrollRoomMember(auth.currentUser,code);
+      location.assign(roomUrl(code));
+    }catch{
+      msg.innerHTML='<p class="error">열린 담벼락을 찾지 못했어요. 참여코드를 다시 확인해 주세요.</p>';
+    }
+  }
+}
 function renderConfig(){renderDemo();}
 function renderDemo(){
   const mock=[

@@ -1,2 +1,4 @@
 .firebase/
 *-export.json
+.tools/
+database-debug.log

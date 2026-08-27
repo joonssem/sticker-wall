@@ -4,6 +4,11 @@
   "version": "0.1.0",
   "scripts": {
     "serve": "npx serve . -l 4173",
-    "ai-helper": "node ai-helper.js"
+    "ai-helper": "node ai-helper.js",
+    "test:rules": "firebase.cmd emulators:exec --only database --project demo-sticker-wall --config firebase.test.json \"node tests/database.rules.test.mjs\""
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "^5.0.2",
+    "firebase": "^12.18.0"
   }
 }
