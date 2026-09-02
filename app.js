@@ -39,7 +39,10 @@ let postConfirmAt=0;
 function esc(s=""){return String(s).replace(/[&<>\"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));}
 function sessionKey(){return `summer-colors-${ROOM_ID}`;}
 function saveSession(v){localStorage.setItem(sessionKey(),JSON.stringify(v));}
-function loadSession(){try{return JSON.parse(localStorage.getItem(sessionKey())||"{}")}catch{return{}}}
+// 같은 아이패드를 다른 학생이 이어 쓰거나 브라우저 데이터가 부분 초기화되면
+// 새 uid가 발급되는데 예전 학생의 색·출석번호가 담긴 localStorage는 그대로 남는다.
+// 저장된 세션의 uid가 지금 로그인한 uid와 다르면 남의 정보이므로 버린다.
+function loadSession(currentUid){try{const saved=JSON.parse(localStorage.getItem(sessionKey())||"{}");if(saved.uid&&currentUid&&saved.uid!==currentUid){localStorage.removeItem(sessionKey());return{};}return saved;}catch{return{}}}
 function draftKey(){return `sticker-post-draft-${ROOM_ID||'lobby'}-${my.uid||'guest'}`;}
 function rememberPostDraft(){const input=document.querySelector('#post-text');if(input)sessionStorage.setItem(draftKey(),input.value);return sessionStorage.getItem(draftKey())||'';}
 function clearPostDraft(){sessionStorage.removeItem(draftKey());}
@@ -118,6 +121,16 @@ function syncTimerTicker(){
 // 글자 크기는 화면 너비에 비례(clamp)해 커지므로 뒷자리 학생도 보기 쉽고,
 // 교사는 +/- 로 한 번 더 키우거나 접기(로컬 화면에서만, 학생 화면엔 영향 없음) 할 수 있다.
 let lastSpotlightPostId=null;
+function spotlightOrder(){return sortPosts(postEntries());}
+function moveSpotlight(delta){
+  const posts=spotlightOrder();
+  const idx=posts.findIndex(p=>p.id===room.selectedPostId);
+  if(idx===-1)return;
+  const nextIdx=idx+delta;
+  if(nextIdx<0||nextIdx>=posts.length)return;
+  const nextId=posts[nextIdx].id;
+  update(ref(db,`rooms/${ROOM_ID}`),{revealedPostIds:{...(room.revealedPostIds||{}),[nextId]:true},selectedPostId:nextId,phase:'presenting'});
+}
 function spotlightMarkup(){
   if(room.selectedPostId!==lastSpotlightPostId){lastSpotlightPostId=room.selectedPostId;spotlightClosedId=null;}
   if(!ROOM_ID||phase()!=='presenting'||!room.selectedPostId)return'';
@@ -126,13 +139,25 @@ function spotlightMarkup(){
   const post=room.posts?.[room.selectedPostId];
   if(!post)return'';
   const c=color(post.authorColorId);
-  const qCount=Object.keys(post.questions||{}).length;
-  return `<div class="spotlight" id="spotlight-overlay" style="--spotlight-bg:${c.hex};--spotlight-scale:${spotlightScale}"><div class="spotlight-card"><p class="spotlight-meta">${esc(c.name)} · 질문 ${qCount}개</p><p class="spotlight-text">${esc(post.text)}</p>${teacher?`<div class="spotlight-controls"><button class="btn secondary" id="spotlight-shrink" aria-label="글자 작게">가−</button><button class="btn secondary" id="spotlight-grow" aria-label="글자 크게">가+</button><button class="btn secondary" id="spotlight-close">접기</button></div>`:''}</div></div>`;
+  const qEntries=Object.entries(post.questions||{});
+  const visibleQ=qEntries.slice(0,4);
+  const moreQ=qEntries.length-visibleQ.length;
+  const qHtml=qEntries.length?`<ul class="spotlight-questions">${visibleQ.map(([,q])=>`<li>❔ ${esc(q.text)}${answerCount(q)?` <span class="muted">· 답글 ${answerCount(q)}개</span>`:''}</li>`).join('')}</ul>${moreQ>0?`<p class="muted">그 외 질문 ${moreQ}개는 목록에서 확인하세요.</p>`:''}`:'';
+  let navHtml='';
+  if(teacher){
+    const posts=spotlightOrder();
+    const idx=posts.findIndex(p=>p.id===room.selectedPostId);
+    const hasPrev=idx>0, hasNext=idx>=0&&idx<posts.length-1;
+    navHtml=`<button class="spotlight-nav prev" id="spotlight-prev" aria-label="이전 포스트잇" ${hasPrev?'':'disabled'}>‹</button><button class="spotlight-nav next" id="spotlight-next" aria-label="다음 포스트잇" ${hasNext?'':'disabled'}>›</button>`;
+  }
+  return `<div class="spotlight" id="spotlight-overlay" style="--spotlight-bg:${c.hex};--spotlight-scale:${spotlightScale}">${navHtml}<div class="spotlight-card"><p class="spotlight-meta">${esc(c.name)} · 질문 ${qEntries.length}개</p><p class="spotlight-text">${esc(post.text)}</p>${qHtml}${teacher?`<div class="spotlight-controls"><button class="btn secondary" id="spotlight-shrink" aria-label="글자 작게">가−</button><button class="btn secondary" id="spotlight-grow" aria-label="글자 크게">가+</button><button class="btn secondary" id="spotlight-close">접기</button></div>`:''}</div></div>`;
 }
 function bindSpotlightControls(){
   document.querySelector('#spotlight-close')?.addEventListener('click',()=>{spotlightClosedId=room.selectedPostId;render();});
   document.querySelector('#spotlight-grow')?.addEventListener('click',()=>{spotlightScale=Math.min(2,Math.round((spotlightScale+.1)*10)/10);render();});
   document.querySelector('#spotlight-shrink')?.addEventListener('click',()=>{spotlightScale=Math.max(.6,Math.round((spotlightScale-.1)*10)/10);render();});
+  document.querySelector('#spotlight-prev')?.addEventListener('click',()=>moveSpotlight(-1));
+  document.querySelector('#spotlight-next')?.addEventListener('click',()=>moveSpotlight(1));
 }
 
 async function boot(){
@@ -148,7 +173,7 @@ async function boot(){
       if(!user) { signInAnonymously(auth); return; }
       stopRealtimeListeners();
       teacher=user.uid===TEACHER_UID;
-      if(!teacher) my={...loadSession(),uid:user.uid};
+      if(!teacher) my={...loadSession(user.uid),uid:user.uid};
       if(teacher) startTeacherListeners();
       if(ROOM_ID) await connectRoom(user);
       render();
@@ -265,14 +290,22 @@ function renderJoin(){ const taken=new Set(Object.keys(room.colorLocks||{}).map(
  document.querySelector("#teacher-login").onclick=renderLogin;
 }
 async function join(colorId){const attendance=joinAttendance.trim(); const msg=document.querySelector("#join-message"); if(!/^\d{1,2}$/.test(attendance)) return msg.innerHTML='<p class="error">출석 번호를 숫자로 입력해 주세요.</p>';if(joining)return;joining=true;document.querySelectorAll('[data-color]').forEach(button=>button.disabled=true);
- const lock=ref(db,`rooms/${ROOM_ID}/colorLocks/${colorId}`); const result=await runTransaction(lock,current=>current||my.uid); if(!result.committed||result.snapshot.val()!==my.uid){joining=false;renderJoin();document.querySelector('#join-message').innerHTML='<p class="error">방금 다른 친구가 이 색을 골랐어요. 다른 색을 골라 주세요.</p>';return;}
- const data={...my,colorId,attendance,questionIds:{}}; await set(ref(db,`teacherRecords/${ROOM_ID}/participants/${my.uid}`),{colorId,attendance,joinedAt:Date.now()}); sessionStorage.removeItem(`sticker-attendance-${ROOM_ID||'lobby'}`);saveSession(data);my=data;joining=false;render();}
+ try{
+   const lock=ref(db,`rooms/${ROOM_ID}/colorLocks/${colorId}`); const result=await runTransaction(lock,current=>current||my.uid); if(!result.committed||result.snapshot.val()!==my.uid){joining=false;renderJoin();document.querySelector('#join-message').innerHTML='<p class="error">방금 다른 친구가 이 색을 골랐어요. 다른 색을 골라 주세요.</p>';return;}
+   const data={...my,colorId,attendance,questionIds:{}}; await set(ref(db,`teacherRecords/${ROOM_ID}/participants/${my.uid}`),{colorId,attendance,joinedAt:Date.now()}); sessionStorage.removeItem(`sticker-attendance-${ROOM_ID||'lobby'}`);saveSession(data);my=data;joining=false;render();
+ }catch(error){
+   // 트랜잭션/기록 저장 중 하나라도 실패하면(네트워크 순간 끊김 등) 여기서 반드시
+   // joining을 풀고 버튼을 되살려야 한다. 안 그러면 학생 화면이 아무 안내도 없이
+   // 색 버튼이 눌러도 반응 없는 채로 영원히 멈춘다.
+   joining=false;document.querySelectorAll('[data-color]').forEach(button=>button.disabled=false);
+   if(document.querySelector('#join-message'))document.querySelector('#join-message').innerHTML=`<p class="error">${writeErrorText(error)} 같은 색을 다시 눌러 주세요.</p>`;
+ }}
 function renderStudent(){const c=color(my.colorId); const isVoting=phase()==="voting", isPresenting=phase()==="presenting"; const posts=postEntries(); const draft=rememberPostDraft(), drafts=rememberQuestionDrafts();const limit=maxPosts(),questionMax=maxQuestions(),questionMin=minQuestions();const step=phase()==='writing'?1:isVoting?2:isPresenting?3:0;const count=isVoting?`${Object.keys(my.questionIds||{}).length} / ${questionMax}개 질문`:isPresenting?'선생님 발표를 들어요':`${posts.filter(p=>p.authorId===my.uid).length} / ${limit}장`;shell(`<section class="card student-card"><div class="activity-steps" aria-label="활동 진행"><span class="${step===1?'current':step>1?'done':''}">1. 생각 붙이기</span><span class="${step===2?'current':step>2?'done':''}">2. 질문 남기기</span><span class="${step===3?'current':''}">3. 함께 듣기</span></div><div class="topbar"><div><div class="step">${isVoting?"지금은 질문 시간":isPresenting?"지금은 발표 시간":"지금은 포스트잇 작성 시간"}</div><h2>${isVoting?"궁금한 이야기에 질문을 남겨요":isPresenting?"친구의 이야기를 들어요":`${c.name}의 포스트잇`}</h2></div><span class="count">${count}</span></div>${phase()==="writing"?`<div class="composer"><label>${esc(room.title||'오늘 담벼락에 붙이고 싶은 생각')}<textarea id="post-text" maxlength="${MAX_LENGTH}" placeholder="말하고 싶은 만큼만 적어도 괜찮아요.">${esc(draft)}</textarea></label><span class="muted">최대 ${MAX_LENGTH}자 · 이모지 사용 가능</span><div class="actions"><button class="btn primary-action" id="add-post">포스트잇 붙이기</button></div>${Date.now()-postConfirmAt<2200?'<p class="confirm-note">포스트잇을 붙였어요! 🎉</p>':''}</div><p class="notice">친구의 이야기는 평가하거나 놀리지 않고, 궁금한 점을 따뜻하게 물어봐요.</p>`:isVoting?`<p class="notice">글과 질문 내용만 보고 궁금한 이야기를 골라요. 질문은 ${questionMin?`최소 ${questionMin}개를 목표로, `:''}최대 ${questionMax}개까지 남길 수 있어요.</p>`:`<p class="notice">선생님이 고른 포스트잇의 색이 나타나면, 해당 친구의 이야기를 함께 들어요.</p>`}<div class="stickies">${posts.map(p=>studentSticky(p,isVoting,isPresenting,c,drafts)).join("")||'<p class="muted">아직 붙은 포스트잇이 없어요.</p>'}</div></section>`);
  if(phase()==="writing"){document.querySelector("#post-text").oninput=rememberPostDraft;document.querySelector("#add-post").onclick=addPost;document.querySelectorAll('[data-edit-own]').forEach(button=>button.onclick=()=>{editingPostId=button.dataset.editOwn;renderStudent();});document.querySelectorAll('[data-cancel-own-edit]').forEach(button=>button.onclick=()=>{editingPostId=null;renderStudent();});document.querySelectorAll('[data-save-own-edit]').forEach(button=>button.onclick=()=>savePostEdit(button.dataset.saveOwnEdit,document.querySelector(`#own-edit-${button.dataset.saveOwnEdit}`).value));document.querySelectorAll('[data-delete-own]').forEach(button=>button.onclick=()=>deletePost(button.dataset.deleteOwn));} if(isVoting) bindQuestions(); }
 function questionThread(postId,questionId,question,isVoting,drafts={}){const answers=Object.values(question.answers||{});const canAnswer=isVoting&&question.authorId!==my.uid&&!answers.some(answer=>answer.authorId===my.uid)&&answers.length<2;const key=`${postId}/${questionId}`;return `<li class="question-item"><span>❔ ${esc(question.text)}</span>${answers.length?`<ul class="answer-list">${answers.map(answer=>`<li>↳ ${esc(answer.text)}</li>`).join('')}</ul>`:''}${canAnswer?`<form class="answer-form" data-post="${postId}" data-question="${questionId}"><input maxlength="${MAX_LENGTH}" value="${esc(drafts[`answer:${key}`]||'')}" placeholder="내 경험이나 생각을 답글로 남겨요" aria-label="답글 내용"><button class="btn secondary">답글</button></form>`:''}</li>`;}
 function studentSticky(p,isVoting,isPresenting,c,drafts={}){const mine=p.authorId===my.uid; const editable=mine&&phase()==='writing';const editing=editable&&editingPostId===p.id;const revealed=isPresenting&&(room.revealedPostIds?.[p.id]||room.selectedPostId===p.id);const bg=revealed?color(p.authorColorId).hex:isVoting||isPresenting?"#fff7a5":mine?c.hex:"#fff7a5";const entries=Object.entries(p.questions||{});const answers=postAnswerCount(p);return `<article class="sticky ${(isVoting||isPresenting)?"public":""} ${revealed?"selected-post":""}" style="background:${bg}">${editing?`<textarea id="own-edit-${p.id}" maxlength="${MAX_LENGTH}" aria-label="포스트잇 수정">${esc(p.text)}</textarea><div class="actions"><button class="btn" data-save-own-edit="${p.id}">저장</button><button class="btn secondary" data-cancel-own-edit="${p.id}">취소</button></div>`:`<p>${esc(p.text)}</p>`}<div class="sticky-meta">${(isVoting||isPresenting)?`❔ 질문 ${entries.length}개 · 답글 ${answers}개${revealed?` · ${esc(color(p.authorColorId).name)}`:""}`:mine?"내 포스트잇":""}</div>${isVoting?`<ul class="question-list">${entries.map(([id,q])=>questionThread(p.id,id,q,true,drafts)).join("")}</ul><form class="question-form" data-post="${p.id}"><input maxlength="${MAX_LENGTH}" value="${esc(drafts[p.id]||'')}" placeholder="궁금한 점을 적어요" aria-label="질문 내용"><button class="btn" ${Object.keys(my.questionIds||{}).length>=maxQuestions()||my.questionIds?.[p.id]?"disabled":""}>질문</button></form>`:isPresenting?`<ul class="question-list">${entries.map(([id,q])=>questionThread(p.id,id,q,false,drafts)).join("")}</ul>`:""}${editable&&!editing?`<div class="actions"><button class="btn secondary" data-edit-own="${p.id}">수정</button><button class="btn secondary" data-delete-own="${p.id}">삭제</button></div>`:""}</article>`;}
 async function addPost(){const text=document.querySelector("#post-text").value.trim();if(!text)return; if(postEntries().filter(p=>p.authorId===my.uid).length>=maxPosts())return;const button=document.querySelector('#add-post');if(button)button.disabled=true;const id=push(ref(db,`rooms/${ROOM_ID}/posts`)).key;const saved=await saveWithFeedback(document.querySelector('.composer'),()=>set(ref(db,`rooms/${ROOM_ID}/posts/${id}`),{authorId:my.uid,authorColorId:my.colorId,text,createdAt:Date.now()}));if(saved){clearPostDraft();postConfirmAt=Date.now();setTimeout(render,2400);render();}else if(button)button.disabled=false;}
-async function savePostEdit(id,text){const value=text.trim();if(!value)return;await update(ref(db,`rooms/${ROOM_ID}/posts/${id}`),{text:value,editedAt:Date.now()});editingPostId=null;}
+async function savePostEdit(id,text){const value=text.trim();if(!value)return;const host=document.querySelector(`#own-edit-${id}`)?.closest('.sticky');const saved=await saveWithFeedback(host,()=>update(ref(db,`rooms/${ROOM_ID}/posts/${id}`),{text:value,editedAt:Date.now()}));if(saved){editingPostId=null;render();}}
 async function deletePost(id){if(!confirm('이 포스트잇을 삭제할까요?'))return;await set(ref(db,`rooms/${ROOM_ID}/posts/${id}`),null);editingPostId=null;}
 function bindQuestions(){document.querySelectorAll(".question-form").forEach(form=>{form.querySelector('input').oninput=rememberQuestionDrafts;form.onsubmit=async e=>{e.preventDefault();const postId=form.dataset.post,text=form.querySelector("input").value.trim();if(!text||my.questionIds?.[postId]||Object.keys(my.questionIds||{}).length>=maxQuestions())return;const id=push(ref(db,`rooms/${ROOM_ID}/posts/${postId}/questions`)).key;const saved=await saveWithFeedback(form,()=>set(ref(db,`rooms/${ROOM_ID}/posts/${postId}/questions/${id}`),{text,authorId:my.uid,createdAt:Date.now()}));if(!saved)return;clearQuestionDraft(postId);my.questionIds={...(my.questionIds||{}),[postId]:id};saveSession(my);render();};});document.querySelectorAll('.answer-form').forEach(form=>{form.querySelector('input').oninput=rememberQuestionDrafts;form.onsubmit=async e=>{e.preventDefault();const postId=form.dataset.post,questionId=form.dataset.question,draft=`answer:${postId}/${questionId}`,text=form.querySelector('input').value.trim(),question=room.posts?.[postId]?.questions?.[questionId],answers=question?.answers||{},id=!answers['slot-1']?'slot-1':!answers['slot-2']?'slot-2':null;if(!text||!question||!id||question.authorId===my.uid||Object.values(answers).some(answer=>answer.authorId===my.uid))return;const saved=await saveWithFeedback(form,()=>set(ref(db,`rooms/${ROOM_ID}/posts/${postId}/questions/${questionId}/answers/${id}`),{text,authorId:my.uid,createdAt:Date.now()}));if(!saved)return;const drafts=questionDrafts();delete drafts[draft];sessionStorage.setItem(questionDraftKey(),JSON.stringify(drafts));render();};});}
 function renderLogin(){shell(`<section class="card"><div class="step">교사 전용</div><h2>교사 로그인</h2><div class="fields"><label>이메일 <input id="email" type="email"></label><label>비밀번호 <input id="password" type="password"></label></div><div id="login-error"></div><div class="actions"><button class="btn" id="login">로그인</button><button class="btn secondary" id="back">돌아가기</button></div></section>`);document.querySelector("#back").onclick=render;document.querySelector("#login").onclick=async()=>{try{await signInWithEmailAndPassword(auth,document.querySelector("#email").value,document.querySelector("#password").value)}catch{document.querySelector("#login-error").innerHTML='<p class="error">로그인 정보를 확인해 주세요.</p>'}}}

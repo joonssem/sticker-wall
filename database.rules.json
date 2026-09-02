@@ -17,6 +17,10 @@
               ".write": "auth != null && root.child('roomMembers').child($room).child(auth.uid).exists() && data.parent().child('authorId').val() === auth.uid && root.child('rooms').child($room).child('phase').val() === 'writing'",
               ".validate": "newData.isString() && newData.val().length <= 80"
             },
+            "editedAt": {
+              ".write": "auth != null && root.child('roomMembers').child($room).child(auth.uid).exists() && data.parent().child('authorId').val() === auth.uid && root.child('rooms').child($room).child('phase').val() === 'writing'",
+              ".validate": "newData.isNumber()"
+            },
             "questions": {
               "$question": {
                 ".write": "auth != null && root.child('roomMembers').child($room).child(auth.uid).exists() && !data.exists() && newData.child('authorId').val() === auth.uid && root.child('rooms').child($room).child('phase').val() === 'voting'",

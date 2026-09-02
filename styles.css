@@ -73,6 +73,13 @@ h1 { font-size:clamp(1.65rem,5vw,2.4rem); margin:0; letter-spacing:-.06em; } h2 
 .spotlight-meta { margin:0 0 18px; font-weight:800; font-size:clamp(1rem,2.4vw,1.6rem); color:#232034; opacity:.75; }
 .spotlight-text { margin:0; font-weight:800; line-height:1.3; white-space:pre-wrap; overflow-wrap:anywhere; color:#1c1930; font-size:clamp(2.1rem,6vw,6rem); }
 .spotlight-controls { display:flex; justify-content:center; gap:10px; margin-top:28px; }
+.spotlight-questions { list-style:none; margin:20px 0 0; padding:0; text-align:left; display:grid; gap:8px; max-height:22vh; overflow:auto; }
+.spotlight-questions li { font-size:clamp(.95rem,1.6vw,1.3rem); font-weight:700; color:#232034; background:rgba(255,255,255,.45); border-radius:12px; padding:9px 13px; }
+.spotlight-nav { position:absolute; top:50%; transform:translateY(-50%); width:52px; height:52px; border-radius:50%; border:0; background:rgba(255,255,255,.85); color:#232034; font-size:1.8rem; line-height:1; box-shadow:0 6px 18px rgba(20,16,31,.25); }
+.spotlight-nav:disabled { opacity:.35; cursor:not-allowed; }
+.spotlight-nav.prev { left:clamp(8px,3vw,32px); }
+.spotlight-nav.next { right:clamp(8px,3vw,32px); }
+@media(max-width:700px){ .spotlight-nav{width:42px;height:42px;font-size:1.4rem} }
 
 @media(max-width:700px){ .timer-badge{margin-left:0;order:3;width:100%;text-align:center} .brand{flex-wrap:wrap} }
 
