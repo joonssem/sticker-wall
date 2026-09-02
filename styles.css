@@ -48,4 +48,32 @@ h1 { font-size:clamp(1.65rem,5vw,2.4rem); margin:0; letter-spacing:-.06em; } h2 
 /* 휴대폰: 한 손 조작과 읽기 쉬운 한 열 배치 */
 @media(max-width:700px){ .shell{width:calc(100% - 22px);padding-top:14px}.brand{align-items:flex-start}.brand-mark{width:36px;height:36px;border-radius:11px}.card{border-radius:19px;padding:20px}.ai-helper-panel{grid-template-columns:1fr}.ai-helper-panel .actions{margin:0;justify-content:flex-start}.topbar{align-items:flex-start;flex-direction:column}.sort-actions{justify-content:flex-start;width:100%}.sort-control{width:100%;justify-content:space-between}.sort-control select{flex:1}.sort-actions .btn{flex:1;min-height:44px}.control-grid{grid-template-columns:1fr}.controls{position:static}.controls .btn{min-height:46px}.color-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.color-card{min-height:92px;padding:12px}.stickies{grid-template-columns:1fr;gap:14px}.sticky{min-height:0;padding:16px}.question-form{flex-direction:column}.question-form .btn{min-height:44px}.join-code{padding:16px}.join-code strong{font-size:clamp(1.5rem,9vw,2.2rem);letter-spacing:.06em}.wall-hero{grid-template-columns:1fr;padding:24px}.wall-board{min-height:280px}.wall-sticky{width:120px;min-height:88px;font-size:.85rem}.s1{left:16px}.s2{right:12px}.s3{left:30px}.s4{right:12px}.board-guide{grid-template-columns:1fr}.teacher-dashboard{grid-template-columns:1fr;gap:10px}.teacher-sidebar{min-height:0;padding:0;border:0}.teacher-sidebar nav{grid-template-columns:1fr 1fr;margin-bottom:12px}.teacher-search{max-width:none}.teacher-sidebar .muted{margin:8px 0}.teacher-sidebar #logout{width:100%}.teacher-heading{margin-bottom:20px}.teacher-heading h2{font-size:2.35rem}.board-grid{grid-template-columns:1fr}.board-tile{min-height:170px}.board-cover{height:132px}.new-board-tile{min-height:132px}.create-board-panel{grid-template-columns:1fr}.create-board-panel .actions{grid-column:auto} }
 
+/* 활동 타이머 */
+.timer-badge { margin-left:auto; padding:9px 16px; border-radius:999px; background:#2a2440; color:#fff; font-weight:800; font-variant-numeric:tabular-nums; letter-spacing:.03em; box-shadow:var(--shadow); }
+.timer-badge.time-up { background:#b6244a; animation:timer-pulse 1s ease-in-out infinite; }
+@keyframes timer-pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.06)} }
+.timer-setup { display:flex; align-items:center; gap:8px; margin:10px 0 8px; }
+.timer-setup input { width:76px; padding:8px 10px; }
+.timer-setup-actions { display:flex; gap:8px; }
+.timer-setup-actions .btn { flex:1; margin-top:0!important; }
+
+/* 진행 제어 버튼: 지금 어떤 단계인지 토글처럼 보이게 */
+.phase-btn { position:relative; }
+.phase-btn.active { outline:3px solid var(--ink); outline-offset:-3px; box-shadow:inset 0 0 0 2px rgba(255,255,255,.55); }
+.phase-btn.active::after { content:"현재 단계"; display:block; margin-top:3px; font-size:.72rem; font-weight:800; opacity:.9; }
+
+/* 포스트잇 게시 확인 메시지 */
+.confirm-note { margin:10px 0 0; padding:10px 13px; border-radius:12px; background:#e4f7ea; color:#186b3d; font-weight:800; animation:confirm-in .2s ease-out; }
+@keyframes confirm-in { from{opacity:0;transform:translateY(-4px)} to{opacity:1;transform:translateY(0)} }
+
+/* 발표 스포트라이트: 화면 전체에 크게 띄우는 오버레이. 뒷자리에서도 보이도록
+   글자 크기를 화면 너비 기준(vw)으로 키우고, 교사는 +/-로 한 번 더 조절 가능 */
+.spotlight { position:fixed; inset:0; z-index:80; display:grid; place-items:center; padding:clamp(16px,4vw,48px); background:rgba(20,16,31,.82); background:color-mix(in srgb, var(--spotlight-bg) 55%, #14101f 45%); }
+.spotlight-card { width:min(100%,60rem); max-height:88vh; overflow:auto; text-align:center; padding:clamp(24px,5vw,64px); border-radius:28px; background:var(--spotlight-bg); box-shadow:0 20px 60px rgba(20,16,31,.35); transform:scale(var(--spotlight-scale,1)); }
+.spotlight-meta { margin:0 0 18px; font-weight:800; font-size:clamp(1rem,2.4vw,1.6rem); color:#232034; opacity:.75; }
+.spotlight-text { margin:0; font-weight:800; line-height:1.3; white-space:pre-wrap; overflow-wrap:anywhere; color:#1c1930; font-size:clamp(2.1rem,6vw,6rem); }
+.spotlight-controls { display:flex; justify-content:center; gap:10px; margin-top:28px; }
+
+@media(max-width:700px){ .timer-badge{margin-left:0;order:3;width:100%;text-align:center} .brand{flex-wrap:wrap} }
+
 @media (pointer:coarse) { .btn{min-height:44px}.color-card{min-height:104px}.demo-nav button{min-height:44px} }
