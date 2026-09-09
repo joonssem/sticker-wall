@@ -30,10 +30,22 @@
 
 실시간 AI 기능은 Firebase나 GitHub에 API 키를 저장하지 않습니다. 교사 컴퓨터에서만 작은 도우미를 실행하고, 키는 실행 중인 메모리에만 둡니다.
 
-1. 교사 컴퓨터에서 이 저장소 폴더의 `AI-도우미-시작.cmd`를 두 번 클릭하거나, 터미널에서 `node ai-helper.js`를 실행합니다. 컴퓨터를 다시 켠 뒤에는 이 과정을 다시 해야 합니다.
-2. 브라우저에서 <http://127.0.0.1:8787>을 열어 Upstage API 키와 모델 이름(기본값: `solar-pro3`)을 입력한 뒤 연결을 테스트합니다.
-3. 교사 로그인 상태의 담벼락에서 `연결 새로고침`을 누릅니다.
-4. `실시간 활동 요약`을 선택하면 출석번호·색 닉네임·Firebase UID를 제외한 포스트잇과 질문 텍스트만 AI 도우미로 전달됩니다.
+1. 교사 컴퓨터에서 PowerShell을 열고 다음 한 줄을 붙여 넣습니다. 설치는 사용자 전용 폴더 `%LOCALAPPDATA%\StickerWallAI`에 이루어지며 관리자 권한이 필요하지 않습니다.
+
+   ```powershell
+   irm "https://joonssem.github.io/sticker-wall/install-ai-helper.ps1" | iex
+   ```
+
+2. 설치가 끝나면 첫 페이지의 `AI 도우미 켜기` 버튼을 누릅니다. 버튼은 로컬 도우미를 시작하고 설정 화면 <http://127.0.0.1:8787>을 엽니다.
+3. 설정 화면에서 Upstage API 키와 모델 이름(기본값: `solar-pro3`)을 입력한 뒤 연결을 테스트합니다.
+4. 교사 로그인 상태의 담벼락에서 `연결 상태 확인`을 누릅니다.
+5. `실시간 활동 요약`을 선택하면 출석번호·색 닉네임·Firebase UID를 제외한 포스트잇과 질문 텍스트만 AI 도우미로 전달됩니다.
+
+직접 PowerShell에서 실행해야 할 때에도 폴더 이동과 실행을 한 줄로 처리할 수 있습니다.
+
+```powershell
+Set-Location "$env:LOCALAPPDATA\StickerWallAI"; .\node\node.exe .\ai-helper.js
+```
 
 키는 GitHub, Firebase Realtime Database, 브라우저 저장소에 기록하지 않습니다. 수업이 끝나면 AI 도우미 창을 닫거나 실행 중인 터미널에서 `Ctrl+C`를 누르면 메모리의 키가 사라집니다. Upstage API 비용은 별도로 발생할 수 있습니다.
 
