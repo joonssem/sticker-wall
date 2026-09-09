@@ -61,7 +61,7 @@ function answerCount(question){return Object.keys(question?.answers||{}).length;
 function postAnswerCount(post){return Object.values(post.questions||{}).reduce((total,question)=>total+answerCount(question),0);}
 function sortPosts(posts){return [...posts].sort((a,b)=>{const aQuestions=a.questionCount??questionCount(a),bQuestions=b.questionCount??questionCount(b);if(sortMode==="latest")return (b.createdAt||0)-(a.createdAt||0);if(sortMode==="oldest")return (a.createdAt||0)-(b.createdAt||0);return bQuestions-aQuestions||((a.createdAt||0)-(b.createdAt||0));});}
 function phase(){return room.phase||"join";}
-function showJoinInfo(){return room.showJoinInfo??phase()==='join';}
+function showJoinInfo(){return room.showJoinInfo!==false;}
 function maxPosts(){return Math.max(1,Math.min(10,Number(room.maxPosts)||MAX_POSTS));}
 function minQuestions(){return Math.max(0,Math.min(10,Number(room.minQuestions)||0));}
 function maxQuestions(){return Math.max(minQuestions(),Math.min(10,Number(room.maxQuestions)||MAX_QUESTIONS));}
@@ -92,14 +92,13 @@ function makeRoomId(){return `STICKER-${crypto.getRandomValues(new Uint32Array(1
 function roomUrl(id){return `${location.pathname}?room=${encodeURIComponent(id)}`;}
 async function renderRoomQr(){
   const joinInfo=document.querySelector('.join-code');
-  if(joinInfo)joinInfo.hidden=!showJoinInfo();
-  const controls=document.querySelector('.controls');
-  if(controls&&!document.querySelector('#toggle-join-info')){
-    controls.insertAdjacentHTML('beforeend',`<label class="toggle-control"><input id="toggle-join-info" type="checkbox" ${showJoinInfo()?'checked':''}><span>참여코드·QR 보이기</span></label>`);
+  if(joinInfo){
+    joinInfo.classList.toggle('join-info-concealed',!showJoinInfo());
+    if(!document.querySelector('#toggle-join-info')){
+      joinInfo.insertAdjacentHTML('beforeend',`<label class="join-visibility-switch"><input id="toggle-join-info" type="checkbox" ${showJoinInfo()?'checked':''}><span class="join-switch-track" aria-hidden="true"></span><span>참여 안내</span></label>`);
+    }
     document.querySelector('#toggle-join-info').onchange=e=>update(ref(db,`rooms/${ROOM_ID}`),{showJoinInfo:e.target.checked});
   }
-  // 작성 시작을 누르면 참여 정보가 자동으로 사라지며, 교사는 바로 위 토글로 다시 보이게 할 수 있다.
-  document.querySelector('[data-phase="writing"]')?.addEventListener('click',()=>update(ref(db,`rooms/${ROOM_ID}`),{showJoinInfo:false}));
   const image=document.querySelector('#room-qr');if(!image)return;
   try{const {toDataURL}=await import('https://cdn.jsdelivr.net/npm/qrcode@1.5.4/+esm');image.src=await toDataURL(location.href,{width:220,margin:1,color:{dark:'#222036',light:'#fffdf7'}});}
   catch{image.alt='QR 코드를 만들지 못했습니다. 학생 링크 복사 버튼을 사용해 주세요.';image.hidden=true;document.querySelector('#room-qr-note').textContent='QR 코드를 만들지 못했어요. 학생 링크 복사 버튼을 사용해 주세요.';}
