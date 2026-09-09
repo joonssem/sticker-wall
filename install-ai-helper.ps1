@@ -1,5 +1,5 @@
-# 스티커 담벼락 AI 도우미 설치 관리자
-# PowerShell에서 다음 한 줄로 실행합니다.
+# Sticker Wall AI helper installer.
+# Run this from PowerShell with the one-line command shown on the website.
 # irm "https://joonssem.github.io/sticker-wall/install-ai-helper.ps1" | iex
 
 $ErrorActionPreference = 'Stop'
@@ -14,16 +14,40 @@ $NodeArchive = Join-Path $env:TEMP "node-$NodeVersion-win-x64.zip"
 $NodePackageUrl = "https://nodejs.org/dist/$NodeVersion/node-$NodeVersion-win-x64.zip"
 $HelperUrl = 'https://joonssem.github.io/sticker-wall/ai-helper.js'
 
+function Get-Download {
+    param([string]$Uri, [string]$Destination, [long]$MinimumBytes = 1)
+
+    Remove-Item -LiteralPath $Destination -Force -ErrorAction SilentlyContinue
+    $curl = Get-Command curl.exe -ErrorAction SilentlyContinue
+    if ($curl) {
+        & curl.exe --fail --location --retry 3 --retry-delay 2 --output $Destination $Uri
+        if ($LASTEXITCODE -eq 0 -and (Test-Path $Destination) -and ((Get-Item $Destination).Length -ge $MinimumBytes)) { return }
+        Remove-Item -LiteralPath $Destination -Force -ErrorAction SilentlyContinue
+    }
+
+    for ($attempt = 1; $attempt -le 3; $attempt++) {
+        try {
+            Invoke-WebRequest -Uri $Uri -OutFile $Destination -UseBasicParsing
+            if ((Get-Item $Destination).Length -ge $MinimumBytes) { return }
+        } catch {
+            if ($attempt -eq 3) { throw }
+            Start-Sleep -Seconds (2 * $attempt)
+        }
+        Remove-Item -LiteralPath $Destination -Force -ErrorAction SilentlyContinue
+    }
+    throw "Could not download $Uri"
+}
+
 Write-Host ''
-Write-Host '스티커 담벼락 AI 도우미를 준비합니다.' -ForegroundColor Cyan
+Write-Host 'Preparing Sticker Wall AI helper…' -ForegroundColor Cyan
 New-Item -ItemType Directory -Force -Path $InstallDir | Out-Null
 
-Write-Host 'AI 도우미 파일을 가져오는 중…'
-Invoke-WebRequest -Uri $HelperUrl -OutFile $HelperFile -UseBasicParsing
+Write-Host 'Downloading AI helper…'
+Get-Download -Uri $HelperUrl -Destination $HelperFile -MinimumBytes 1000
 
 if (-not (Test-Path $NodeExe)) {
-    Write-Host '실행 환경(Node.js)을 준비하는 중입니다. 처음 한 번만 필요합니다…'
-    Invoke-WebRequest -Uri $NodePackageUrl -OutFile $NodeArchive -UseBasicParsing
+    Write-Host 'Downloading Node.js runtime (one-time setup)…'
+    Get-Download -Uri $NodePackageUrl -Destination $NodeArchive -MinimumBytes 1000000
     $ExtractDir = Join-Path $InstallDir "node-$NodeVersion-win-x64"
     if (Test-Path $ExtractDir) { Remove-Item -LiteralPath $ExtractDir -Recurse -Force }
     Expand-Archive -LiteralPath $NodeArchive -DestinationPath $InstallDir -Force
@@ -65,7 +89,7 @@ $ProtocolCommand = "`"$PowerShellExe`" -NoProfile -ExecutionPolicy Bypass -Windo
 Set-ItemProperty -Path "$ProtocolKey\shell\open\command" -Name '(Default)' -Value $ProtocolCommand
 
 Write-Host ''
-Write-Host '설치가 끝났습니다.' -ForegroundColor Green
-Write-Host "설치 폴더: $InstallDir"
-Write-Host '앞으로는 스티커 담벼락 첫 페이지의 “AI 도우미 켜기” 버튼만 누르세요.'
+Write-Host 'Installation complete.' -ForegroundColor Green
+Write-Host "Install folder: $InstallDir"
+Write-Host 'Next time, use the AI helper button on the Sticker Wall home page.'
 & $LauncherFile
