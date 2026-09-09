@@ -61,6 +61,7 @@ function answerCount(question){return Object.keys(question?.answers||{}).length;
 function postAnswerCount(post){return Object.values(post.questions||{}).reduce((total,question)=>total+answerCount(question),0);}
 function sortPosts(posts){return [...posts].sort((a,b)=>{const aQuestions=a.questionCount??questionCount(a),bQuestions=b.questionCount??questionCount(b);if(sortMode==="latest")return (b.createdAt||0)-(a.createdAt||0);if(sortMode==="oldest")return (a.createdAt||0)-(b.createdAt||0);return bQuestions-aQuestions||((a.createdAt||0)-(b.createdAt||0));});}
 function phase(){return room.phase||"join";}
+function showJoinInfo(){return room.showJoinInfo??phase()==='join';}
 function maxPosts(){return Math.max(1,Math.min(10,Number(room.maxPosts)||MAX_POSTS));}
 function minQuestions(){return Math.max(0,Math.min(10,Number(room.minQuestions)||0));}
 function maxQuestions(){return Math.max(minQuestions(),Math.min(10,Number(room.maxQuestions)||MAX_QUESTIONS));}
@@ -89,7 +90,20 @@ function restoreFocusState(state){
 }
 function makeRoomId(){return `STICKER-${crypto.getRandomValues(new Uint32Array(1))[0].toString(36).toUpperCase().slice(0,6)}`;}
 function roomUrl(id){return `${location.pathname}?room=${encodeURIComponent(id)}`;}
-async function renderRoomQr(){const image=document.querySelector('#room-qr');if(!image)return;try{const {toDataURL}=await import('https://cdn.jsdelivr.net/npm/qrcode@1.5.4/+esm');image.src=await toDataURL(location.href,{width:220,margin:1,color:{dark:'#222036',light:'#fffdf7'}});}catch{image.alt='QR 코드를 만들지 못했습니다. 학생 링크 복사 버튼을 사용해 주세요.';image.hidden=true;document.querySelector('#room-qr-note').textContent='QR 코드를 만들지 못했어요. 학생 링크 복사 버튼을 사용해 주세요.';}}
+async function renderRoomQr(){
+  const joinInfo=document.querySelector('.join-code');
+  if(joinInfo)joinInfo.hidden=!showJoinInfo();
+  const controls=document.querySelector('.controls');
+  if(controls&&!document.querySelector('#toggle-join-info')){
+    controls.insertAdjacentHTML('beforeend',`<label class="toggle-control"><input id="toggle-join-info" type="checkbox" ${showJoinInfo()?'checked':''}><span>참여코드·QR 보이기</span></label>`);
+    document.querySelector('#toggle-join-info').onchange=e=>update(ref(db,`rooms/${ROOM_ID}`),{showJoinInfo:e.target.checked});
+  }
+  // 작성 시작을 누르면 참여 정보가 자동으로 사라지며, 교사는 바로 위 토글로 다시 보이게 할 수 있다.
+  document.querySelector('[data-phase="writing"]')?.addEventListener('click',()=>update(ref(db,`rooms/${ROOM_ID}`),{showJoinInfo:false}));
+  const image=document.querySelector('#room-qr');if(!image)return;
+  try{const {toDataURL}=await import('https://cdn.jsdelivr.net/npm/qrcode@1.5.4/+esm');image.src=await toDataURL(location.href,{width:220,margin:1,color:{dark:'#222036',light:'#fffdf7'}});}
+  catch{image.alt='QR 코드를 만들지 못했습니다. 학생 링크 복사 버튼을 사용해 주세요.';image.hidden=true;document.querySelector('#room-qr-note').textContent='QR 코드를 만들지 못했어요. 학생 링크 복사 버튼을 사용해 주세요.';}
+}
 function aiHelperPanel(withSummary=false){const features=withSummary?`<div class="ai-feature-actions"><button class="btn" data-ai-assist="summary">실시간 활동 요약</button><button class="btn secondary" data-ai-assist="order">발표 순서 추천</button><button class="btn secondary" data-ai-assist="followup">발표 뒤 연결 질문</button><button class="btn secondary" data-ai-assist="diversity">질문 다양성 점검</button><button class="btn secondary" data-ai-assist="guide">다음 안내 문구</button><button class="btn secondary" data-ai-assist="safety">민감 표현 검토</button></div><p id="ai-summary-result" class="ai-result" aria-live="polite"></p>`:'';return `<section class="ai-helper-panel"><div><span class="step">교사 컴퓨터 전용</span><strong>AI 연결 상태 <span class="ai-status-pill" id="ai-helper-status" data-state="checking">● 확인 중…</span></strong><small>API 키는 로컬 AI 도우미에만 보관됩니다.</small></div><div class="actions"><a class="btn secondary" href="stickerwall-ai://start">AI 도우미 켜기</a><a class="btn secondary" id="ai-helper-setup" href="${AI_HELPER_URL}" target="_blank" rel="noopener">설정 열기 ↗</a><button class="btn secondary" id="ai-helper-refresh">연결 상태 확인</button></div><p id="ai-helper-note" class="muted">처음 한 번만 설치하세요: PowerShell에 <code>${AI_INSTALL_COMMAND}</code>를 붙여 넣습니다.</p>${features}</section>`;}
 async function checkAiHelper(){const status=document.querySelector('#ai-helper-status'),buttons=document.querySelectorAll('[data-ai-assist]'),note=document.querySelector('#ai-helper-note'),localLink=`<a href="${AI_HELPER_URL}" target="_blank" rel="noopener">http://127.0.0.1:8787/ 열기 ↗</a>`;if(!status)return;status.dataset.state='checking';status.textContent='● 확인 중…';buttons.forEach(button=>button.disabled=true);try{const response=await fetch(`${AI_HELPER_URL}/status`);const data=await response.json();if(data.configured){status.dataset.state='ready';status.textContent=`● 연결됨 · ${data.model||'모델 설정됨'}`;}else{status.dataset.state='setup';status.textContent='● 도우미 실행됨 · API 키 설정 필요';}if(note)note.innerHTML=data.configured?`AI 기능을 사용할 준비가 됐어요. 필요한 도움을 선택하세요. ${localLink}`:`Upstage API 키를 입력하고 연결을 테스트하세요. ${localLink}`;buttons.forEach(button=>button.disabled=!data.configured);}catch{status.dataset.state='offline';status.textContent='● 연결 안 됨';if(note)note.innerHTML=`위의 ‘AI 도우미 켜기’를 누르세요. 처음이라면 PowerShell에 <code>${AI_INSTALL_COMMAND}</code>를 붙여 넣어 설치하세요.`;}}
 function anonymousActivity(){return {title:room.title||'',phase:phase(),selectedPost:selectedPost?{text:selectedPost.text,questions:Object.values(selectedPost.questions||{}).map(q=>q.text)}:null,posts:postEntries().map(p=>({text:p.text,questions:Object.values(p.questions||{}).map(q=>q.text)}))};}
