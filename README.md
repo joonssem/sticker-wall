@@ -47,7 +47,7 @@
 Set-Location "$env:LOCALAPPDATA\StickerWallAI"; .\node\node.exe .\ai-helper.js
 ```
 
-키는 GitHub, Firebase Realtime Database, 브라우저 저장소에 기록하지 않습니다. 수업이 끝나면 AI 도우미 창을 닫거나 실행 중인 터미널에서 `Ctrl+C`를 누르면 메모리의 키가 사라집니다. Upstage API 비용은 별도로 발생할 수 있습니다.
+키는 GitHub, Firebase Realtime Database, 브라우저 저장소에 기록하지 않습니다. 수업이 끝나면 로컬 설정 화면의 `AI 도우미 끝내기`를 눌러 메모리의 키를 즉시 지울 수 있습니다. Upstage API 비용은 별도로 발생할 수 있습니다.
 
 ## 학생 화면 원칙
 
