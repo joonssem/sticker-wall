@@ -34,7 +34,7 @@ let teacherBoardsUnsubscribe=null, teacherRecordsUnsubscribe=null;
 const AI_HELPER_URL='http://127.0.0.1:8787';
 const AI_INSTALL_COMMAND='irm "https://joonssem.github.io/sticker-wall/install-ai-helper.ps1" | iex';
 let timerIntervalId=null, timerAlertedFor=null;
-let spotlightClosedId=null, spotlightScale=1;
+let spotlightClosedId=null, spotlightScale=1, spotlightOpenQuestionId=null;
 let postConfirmAt=0;
 
 function esc(s=""){return String(s).replace(/[&<>\"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));}
@@ -100,8 +100,34 @@ async function renderRoomQr(){
     document.querySelector('#toggle-join-info').onchange=e=>update(ref(db,`rooms/${ROOM_ID}`),{showJoinInfo:e.target.checked});
   }
   const image=document.querySelector('#room-qr');if(!image)return;
+  queueMicrotask(arrangeTeacherControls);
   try{const {toDataURL}=await import('https://cdn.jsdelivr.net/npm/qrcode@1.5.4/+esm');image.src=await toDataURL(location.href,{width:220,margin:1,color:{dark:'#222036',light:'#fffdf7'}});}
   catch{image.alt='QR 코드를 만들지 못했습니다. 학생 링크 복사 버튼을 사용해 주세요.';image.hidden=true;document.querySelector('#room-qr-note').textContent='QR 코드를 만들지 못했어요. 학생 링크 복사 버튼을 사용해 주세요.';}
+}
+function arrangeTeacherControls(){
+  const controls=document.querySelector('.controls');
+  if(!controls||controls.dataset.arranged)return;
+  controls.dataset.arranged='true';
+  const grid=controls.parentElement,wall=grid?.querySelector(':scope > section'),joinInfo=document.querySelector('.join-code');
+  const limits=['#max-posts','#min-questions','#max-questions'].map(selector=>controls.querySelector(selector)?.closest('label')).filter(Boolean);
+  const headings=[...controls.querySelectorAll(':scope > strong')];
+  const phaseButtons=[...controls.querySelectorAll('[data-phase]')];
+  const timerSetup=controls.querySelector('.timer-setup'),timerActions=controls.querySelector('.timer-setup-actions');
+  const attendance=controls.querySelector('#toggle-attendance'),downloadButton=controls.querySelector('#download');
+  const note=[...controls.querySelectorAll(':scope > p')].find(node=>node.classList.contains('muted'));
+  const presenterText=[...controls.querySelectorAll(':scope > p')].find(node=>!node.classList.contains('muted'));
+  const group=(label,items)=>{const section=document.createElement('section');section.className='operation-group';section.innerHTML=`<span class="operation-label">${label}</span>`;items.filter(Boolean).forEach(item=>section.append(item));return section;};
+  const extra=document.createElement('details');extra.className='operation-more';extra.innerHTML='<summary>추가 설정</summary>';[attendance,downloadButton,note].filter(Boolean).forEach(item=>extra.append(item));
+  controls.className='activity-control-bar teacher-only';
+  controls.replaceChildren(
+    group('진행 단계',[...phaseButtons]),
+    group('작성·질문 기준',limits),
+    group('활동 타이머',[timerSetup,timerActions]),
+    group('현재 발표자',[presenterText]),
+    extra,
+  );
+  joinInfo?.insertAdjacentElement('afterend',controls);
+  if(grid&&wall){wall.classList.add('teacher-wall');grid.replaceWith(wall);}
 }
 function aiHelperPanel(withSummary=false){const features=withSummary?`<div class="ai-feature-actions"><button class="btn" data-ai-assist="summary">실시간 활동 요약</button><button class="btn secondary" data-ai-assist="order">발표 순서 추천</button><button class="btn secondary" data-ai-assist="followup">발표 뒤 연결 질문</button><button class="btn secondary" data-ai-assist="diversity">질문 다양성 점검</button><button class="btn secondary" data-ai-assist="guide">다음 안내 문구</button><button class="btn secondary" data-ai-assist="safety">민감 표현 검토</button></div><p id="ai-summary-result" class="ai-result" aria-live="polite"></p>`:'';return `<section class="ai-helper-panel"><div><span class="step">교사 컴퓨터 전용</span><strong>AI 연결 상태 <span class="ai-status-pill" id="ai-helper-status" data-state="checking">● 확인 중…</span></strong><small>API 키는 로컬 AI 도우미에만 보관됩니다.</small></div><div class="actions"><a class="btn secondary" href="stickerwall-ai://start">AI 도우미 켜기</a><a class="btn secondary" id="ai-helper-setup" href="${AI_HELPER_URL}" target="_blank" rel="noopener">설정 열기 ↗</a><button class="btn secondary" id="ai-helper-refresh">연결 상태 확인</button></div><p id="ai-helper-note" class="muted">처음 한 번만 설치하세요: PowerShell에 <code>${AI_INSTALL_COMMAND}</code>를 붙여 넣습니다.</p>${features}</section>`;}
 async function checkAiHelper(){const status=document.querySelector('#ai-helper-status'),buttons=document.querySelectorAll('[data-ai-assist]'),note=document.querySelector('#ai-helper-note'),localLink=`<a href="${AI_HELPER_URL}" target="_blank" rel="noopener">http://127.0.0.1:8787/ 열기 ↗</a>`;if(!status)return;status.dataset.state='checking';status.textContent='● 확인 중…';buttons.forEach(button=>button.disabled=true);try{const response=await fetch(`${AI_HELPER_URL}/status`);const data=await response.json();if(data.configured){status.dataset.state='ready';status.textContent=`● 연결됨 · ${data.model||'모델 설정됨'}`;}else{status.dataset.state='setup';status.textContent='● 도우미 실행됨 · API 키 설정 필요';}if(note)note.innerHTML=data.configured?`AI 기능을 사용할 준비가 됐어요. 필요한 도움을 선택하세요. ${localLink}`:`Upstage API 키를 입력하고 연결을 테스트하세요. ${localLink}`;buttons.forEach(button=>button.disabled=!data.configured);}catch{status.dataset.state='offline';status.textContent='● 연결 안 됨';if(note)note.innerHTML=`위의 ‘AI 도우미 켜기’를 누르세요. 처음이라면 PowerShell에 <code>${AI_INSTALL_COMMAND}</code>를 붙여 넣어 설치하세요.`;}}
@@ -147,7 +173,7 @@ function moveSpotlight(delta){
   update(ref(db,`rooms/${ROOM_ID}`),{revealedPostIds:{...(room.revealedPostIds||{}),[nextId]:true},selectedPostId:nextId,phase:'presenting'});
 }
 function spotlightMarkup(){
-  if(room.selectedPostId!==lastSpotlightPostId){lastSpotlightPostId=room.selectedPostId;spotlightClosedId=null;}
+  if(room.selectedPostId!==lastSpotlightPostId){lastSpotlightPostId=room.selectedPostId;spotlightClosedId=null;spotlightOpenQuestionId=null;}
   if(!ROOM_ID||phase()!=='presenting'||!room.selectedPostId)return'';
   if(!room.revealedPostIds?.[room.selectedPostId])return'';
   if(spotlightClosedId===room.selectedPostId)return'';
@@ -157,7 +183,7 @@ function spotlightMarkup(){
   const qEntries=Object.entries(post.questions||{});
   const visibleQ=qEntries.slice(0,4);
   const moreQ=qEntries.length-visibleQ.length;
-  const qHtml=qEntries.length?`<ul class="spotlight-questions">${visibleQ.map(([,q])=>`<li>❔ ${esc(q.text)}${answerCount(q)?` <span class="muted">· 답글 ${answerCount(q)}개</span>`:''}</li>`).join('')}</ul>${moreQ>0?`<p class="muted">그 외 질문 ${moreQ}개는 목록에서 확인하세요.</p>`:''}`:'';
+  const qHtml=qEntries.length?`<ul class="spotlight-questions">${visibleQ.map(([id,q])=>{const answers=Object.values(q.answers||{}),open=spotlightOpenQuestionId===id;return `<li class="${open?'answers-open':''}"><div class="spotlight-question-line">❔ ${esc(q.text)} <button class="spotlight-answer-toggle" data-spotlight-answers="${esc(id)}" aria-expanded="${open}">답글 ${answers.length}개 ${open?'▴':'▾'}</button></div>${open?`<ul class="spotlight-answers">${answers.length?answers.map(answer=>`<li>↳ ${esc(answer.text)}</li>`).join(''):'<li class="empty-answer">아직 답글이 없어요.</li>'}</ul>`:''}</li>`;}).join('')}</ul>${moreQ>0?`<p class="muted">그 외 질문 ${moreQ}개는 목록에서 확인하세요.</p>`:''}`:'';
   let navHtml='';
   if(teacher){
     const posts=spotlightOrder();
@@ -173,6 +199,7 @@ function bindSpotlightControls(){
   document.querySelector('#spotlight-shrink')?.addEventListener('click',()=>{spotlightScale=Math.max(.6,Math.round((spotlightScale-.1)*10)/10);render();});
   document.querySelector('#spotlight-prev')?.addEventListener('click',()=>moveSpotlight(-1));
   document.querySelector('#spotlight-next')?.addEventListener('click',()=>moveSpotlight(1));
+  document.querySelectorAll('[data-spotlight-answers]').forEach(button=>button.addEventListener('click',()=>{const id=button.dataset.spotlightAnswers;spotlightOpenQuestionId=spotlightOpenQuestionId===id?null:id;render();}));
 }
 
 async function boot(){
