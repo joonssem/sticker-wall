@@ -55,18 +55,43 @@ function sanitizeActivity(activity) {
   };
 }
 
-async function verifyTeacher(request, env) {
+let firebaseKeysPromise;
+
+function decodeBase64Url(value) {
+  const normalized = value.replace(/-/g, '+').replace(/_/g, '/').padEnd(Math.ceil(value.length / 4) * 4, '=');
+  const bytes = Uint8Array.from(atob(normalized), char => char.charCodeAt(0));
+  return new TextDecoder().decode(bytes);
+}
+
+async function firebaseKeys() {
+  if (!firebaseKeysPromise) {
+    firebaseKeysPromise = fetch('https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com')
+      .then(response => response.ok ? response.json() : Promise.reject(new Error('Firebase public keys unavailable')));
+  }
+  return firebaseKeysPromise;
+}
+
+async function verifyTeacher(request) {
   const header = request.headers.get('authorization') || '';
   const idToken = header.startsWith('Bearer ') ? header.slice(7).trim() : '';
-  if (!idToken || !env.FIREBASE_WEB_API_KEY) return false;
-  const response = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${encodeURIComponent(env.FIREBASE_WEB_API_KEY)}`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ idToken })
-  });
-  if (!response.ok) return false;
-  const data = await response.json();
-  return data.users?.[0]?.localId === TEACHER_UID;
+  if (!idToken) return false;
+  try {
+    const [encodedHeader, encodedPayload, encodedSignature] = idToken.split('.');
+    if (!encodedHeader || !encodedPayload || !encodedSignature) return false;
+    const tokenHeader = JSON.parse(decodeBase64Url(encodedHeader));
+    const claims = JSON.parse(decodeBase64Url(encodedPayload));
+    const now = Math.floor(Date.now() / 1000);
+    if (tokenHeader.alg !== 'RS256' || claims.aud !== 'ques-c126f' || claims.iss !== 'https://securetoken.google.com/ques-c126f' || claims.sub !== TEACHER_UID || !claims.exp || claims.exp <= now) return false;
+    const keys = await firebaseKeys();
+    const jwk = keys.keys?.find(key => key.kid === tokenHeader.kid);
+    if (!jwk) return false;
+    const publicKey = await crypto.subtle.importKey('jwk', jwk, { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, false, ['verify']);
+    const normalizedSignature = encodedSignature.replace(/-/g, '+').replace(/_/g, '/').padEnd(Math.ceil(encodedSignature.length / 4) * 4, '=');
+    const signature = Uint8Array.from(atob(normalizedSignature), char => char.charCodeAt(0));
+    return crypto.subtle.verify('RSASSA-PKCS1-v1_5', publicKey, signature, new TextEncoder().encode(`${encodedHeader}.${encodedPayload}`));
+  } catch {
+    return false;
+  }
 }
 
 export default {
@@ -75,7 +100,7 @@ export default {
     if (origin && origin !== ALLOWED_ORIGIN) return json({ error: '허용되지 않은 웹사이트입니다.' }, 403);
     if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: corsHeaders() });
     if (request.method !== 'POST' || new URL(request.url).pathname !== '/assist') return json({ error: '없는 요청입니다.' }, 404);
-    if (!(await verifyTeacher(request, env))) return json({ error: '교사 인증이 필요합니다.' }, 401);
+    if (!(await verifyTeacher(request))) return json({ error: '교사 인증이 필요합니다.' }, 401);
     const raw = await request.text();
     if (new TextEncoder().encode(raw).length > MAX_BODY_BYTES) return json({ error: '요청이 너무 큽니다.' }, 413);
     let body;
