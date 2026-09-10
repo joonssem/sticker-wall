@@ -202,6 +202,8 @@ function bindSpotlightControls(){
 }
 
 async function boot(){
+  renderInitialLoading();
+  const loadingFallback=setTimeout(()=>{if(!db) renderConfig();},8000);
   try {
     if(TEST_MODE) return renderTestWall();
     const {firebaseConfig}=await import("./firebase-config.js");
@@ -221,6 +223,7 @@ async function boot(){
     });
     my=loadSession(); render();
   } catch { renderConfig(); }
+  finally { clearTimeout(loadingFallback); }
 }
 function stopRealtimeListeners(){
   roomUnsubscribe?.();
@@ -300,6 +303,10 @@ async function enterRoom(){
       msg.innerHTML='<p class="error">열린 담벼락을 찾지 못했어요. 참여코드를 다시 확인해 주세요.</p>';
     }
   }
+}
+function renderInitialLoading(){
+  if(!ROOM_ID) return renderDemo();
+  shell('<section class="card app-loading"><div class="step">스티커 담벼락</div><h2>담벼락을 불러오는 중이에요</h2><p>잠시만 기다려 주세요. 연결이 늦어지면 화면을 새로고침해 주세요.</p></section>');
 }
 function renderConfig(){renderDemo();}
 function renderDemo(){
