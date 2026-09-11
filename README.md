@@ -39,7 +39,7 @@
 - 질문 도움 정보는 친구들이 읽는 공개 질문과 분리해 작성 학생과 교사에게만 저장합니다. 버린 초안과 AI 제안 전문은 Firebase에 저장하지 않습니다.
 - 다시 보고 싶은 질문의 선택 이유는 작성 학생과 교사만 읽을 수 있습니다.
 
-배포 Worker에서 학생용 질문 다듬기를 사용하려면 Firebase 규칙을 먼저 게시하고, Worker에 `SOLAR_API_KEY`, `AI_BURST_LIMITER`, `AI_ROOM_LIMITER`를 설정해야 합니다. 자세한 조건은 [`sticker-wall-publish/cloudflare-worker/README.md`](sticker-wall-publish/cloudflare-worker/README.md)를 참고하세요.
+배포 Worker에서 학생용 질문 다듬기를 사용하려면 Firebase 규칙을 먼저 게시하고, Worker에 `SOLAR_API_KEY`, `AI_BURST_LIMITER`, `AI_ROOM_LIMITER`를 설정해야 합니다. 자세한 조건은 [`cloudflare-worker/README.md`](cloudflare-worker/README.md)를 참고하세요.
 
 ## AI 연결
 
@@ -65,7 +65,7 @@
 
 ## 소스와 배포 사본
 
-웹앱의 기준 소스는 저장소 루트의 `index.html`, `app.js`, `styles.css`, `database.rules.json`입니다. `sticker-wall-publish`의 웹앱 파일은 이전 배포 묶음으로 보존하며 기능 개발 중에는 직접 수정하지 않습니다. Solar API Worker의 기준 소스는 `sticker-wall-publish/cloudflare-worker/worker.js`입니다.
+웹앱의 기준 소스는 저장소 루트의 `index.html`, `app.js`, `styles.css`, `database.rules.json`입니다. Solar API Worker의 기준 소스는 `cloudflare-worker/worker.js`입니다. `sticker-wall-publish`은 이전 배포 묶음이므로 기능 개발 원본으로 직접 수정하지 않습니다.
 
 > Firebase 웹 설정값은 웹앱에 노출되는 값입니다. 실제 보호는 Realtime Database 규칙과 교사 UID 검사로 처리합니다.
 
