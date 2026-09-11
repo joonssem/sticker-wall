@@ -42,14 +42,22 @@ assert.deepEqual(input, {
 assert.equal(sanitizeRefineInput({ goal: 'score', question: '질문' }, {}), null);
 assert.equal(sanitizeRefineInput({ goal: 'clarify', question: '' }, {}), null);
 
-assert.deepEqual(parseRefineResult('{"observation":"이유를 궁금해하고 있어요.","hint":"대상과 장소를 떠올려 보세요.","example":"어떤 장소에서 관찰했나요?","alreadyClear":false}'), {
+assert.deepEqual(parseRefineResult('{"observation":"이유를 궁금해하고 있어요.","hint":"대상과 장소를 떠올려 보세요.","example":"___에서 관찰했나요?","alreadyClear":false}'), {
   observation: '이유를 궁금해하고 있어요.',
   hint: '대상과 장소를 떠올려 보세요.',
-  example: '어떤 장소에서 관찰했나요?',
+  example: '___에서 관찰했나요?',
   alreadyClear: false
 });
 assert.equal(parseRefineResult('JSON이 아닌 답변'), null);
 assert.equal(parseRefineResult('{"observation":"관찰","hint":""}'), null);
+assert.equal(parseRefineResult('{"observation":"관찰","hint":"대상을 떠올려 보세요.","example":"어떤 장소에서 관찰했나요?"}'), null);
+assert.equal(parseRefineResult('{"observation":"관찰","hint":"대상을 떠올려 보세요.","example":"___와 ___를 비교해 볼까요?"}'), null);
+assert.deepEqual(parseRefineResult('{"observation":"관찰","hint":"대상을 떠올려 보세요.","example":"어떤 장소에서 관찰했나요?"}', '___에 대해 더 자세히 알고 싶은 점은 무엇인가요?'), {
+  observation: '관찰',
+  hint: '대상을 떠올려 보세요.',
+  example: '___에 대해 더 자세히 알고 싶은 점은 무엇인가요?',
+  alreadyClear: false
+});
 
 assert.equal((await enforceStudentLimit({}, 'room:student')).status, 503);
 assert.equal(await enforceStudentLimit({
@@ -60,5 +68,12 @@ assert.equal((await enforceStudentLimit({
   AI_BURST_LIMITER: { limit: async () => ({ success: false }) },
   AI_ROOM_LIMITER: { limit: async () => ({ success: true }) }
 }, 'room:student')).status, 429);
+
+const limiterKeys = [];
+assert.equal(await enforceStudentLimit({
+  AI_BURST_LIMITER: { limit: async ({ key }) => { limiterKeys.push(key); return { success: true }; } },
+  AI_ROOM_LIMITER: { limit: async ({ key }) => { limiterKeys.push(key); return { success: true }; } }
+}, 'STICKER-AB12:student-1', 'STICKER-AB12'), null);
+assert.deepEqual(limiterKeys, ['STICKER-AB12:student-1', 'STICKER-AB12']);
 
 console.log('Worker 질문 다듬기 입력·응답 검증 통과');

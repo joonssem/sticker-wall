@@ -105,7 +105,17 @@ function sanitizeRefineInput(body, trustedContext) {
   };
 }
 
-function parseRefineResult(content) {
+function hasSingleBlank(example) {
+  return (String(example).match(/_/g) || []).length === 3 && String(example).includes('___');
+}
+
+function fallbackExample(goal) {
+  return goal === 'explore'
+    ? '만약 ___라면 어떻게 달라질까요?'
+    : '___에 대해 더 자세히 알고 싶은 점은 무엇인가요?';
+}
+
+function parseRefineResult(content, exampleFallback = '') {
   try {
     const raw = String(content || '').trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
     const value = JSON.parse(raw);
@@ -115,7 +125,8 @@ function parseRefineResult(content) {
       example: text(value?.example, 100),
       alreadyClear: Boolean(value?.alreadyClear)
     };
-    return result.observation && result.hint ? result : null;
+    if (!hasSingleBlank(result.example) && hasSingleBlank(exampleFallback)) result.example = exampleFallback;
+    return result.observation && result.hint && hasSingleBlank(result.example) ? result : null;
   } catch {
     return null;
   }
@@ -186,13 +197,13 @@ async function trustedStudentContext(env, roomId, postId, auth) {
   return { context: { title, topic, keyTerms: Array.isArray(keyTerms) ? keyTerms : Object.values(keyTerms || {}), postText } };
 }
 
-async function enforceStudentLimit(env, key) {
+async function enforceStudentLimit(env, studentKey, roomKey = studentKey) {
   if (!env.AI_BURST_LIMITER || !env.AI_ROOM_LIMITER) {
     return { error: '질문 코치의 사용량 제한 설정을 확인하고 있어요. 직접 질문은 등록할 수 있어요.', status: 503 };
   }
   const [burst, room] = await Promise.all([
-    env.AI_BURST_LIMITER.limit({ key }),
-    env.AI_ROOM_LIMITER.limit({ key })
+    env.AI_BURST_LIMITER.limit({ key: studentKey }),
+    env.AI_ROOM_LIMITER.limit({ key: roomKey })
   ]);
   return burst.success && room.success ? null : { error: '이번 담벼락에서 질문 코치 도움을 모두 사용했어요. 직접 질문을 이어서 쓸 수 있어요.', status: 429 };
 }
@@ -226,14 +237,15 @@ async function handleStudentRefine(env, body, auth, origin) {
   if (trusted.error) return json({ error: trusted.error }, trusted.status, origin);
   const input = sanitizeRefineInput(body, trusted.context);
   if (!input) return json({ error: '질문과 도움 방향을 확인해 주세요.' }, 400, origin);
-  const limited = await enforceStudentLimit(env, `${roomId}:${auth.claims.sub}`);
+  const limited = await enforceStudentLimit(env, `${roomId}:${auth.claims.sub}`, roomId);
   if (limited) return json({ error: limited.error }, limited.status, origin);
   let solar = await callSolar(env, [
     { role: 'system', content: REFINE_PROMPT },
     { role: 'user', content: JSON.stringify(input) }
   ], 300);
   if (solar.error) return json({ error: '질문 도움을 만들지 못했어요. 직접 질문은 등록할 수 있어요.' }, solar.status, origin);
-  let result = parseRefineResult(solar.content);
+  const exampleFallback = fallbackExample(input.goal);
+  let result = parseRefineResult(solar.content, exampleFallback);
   if (!result) {
     solar = await callSolar(env, [
       { role: 'system', content: REFINE_PROMPT },
@@ -241,7 +253,7 @@ async function handleStudentRefine(env, body, auth, origin) {
       { role: 'assistant', content: solar.content },
       { role: 'user', content: '위 내용을 지정된 JSON 형식으로만 다시 작성하세요.' }
     ], 300);
-    result = solar.error ? null : parseRefineResult(solar.content);
+    result = solar.error ? null : parseRefineResult(solar.content, exampleFallback);
   }
   if (!result) return json({ error: '질문 도움의 형식을 읽지 못했어요. 직접 질문은 등록할 수 있어요.' }, 502, origin);
   return json({ result }, 200, origin);

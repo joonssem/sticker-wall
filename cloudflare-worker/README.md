@@ -21,7 +21,7 @@ rate limiter가 없으면 학생용 질문 다듬기는 `503`으로 안전하게
 Cloudflare Dashboard의 Quick Edit 또는 인증된 Wrangler 환경에서 다음 명령으로 배포한다.
 
 ```powershell
-npx wrangler deploy cloudflare-worker/worker.js --name sticker-wall-ai --compatibility-date 2026-09-11
+npx wrangler deploy --config cloudflare-worker/wrangler.jsonc --keep-vars
 ```
 
 배포 뒤에는 다음을 확인한다.
