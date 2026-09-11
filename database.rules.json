@@ -4,6 +4,20 @@
       "$room": {
         ".read": "auth != null && (auth.uid === 'Z6WEsEFSTBbq6eeIF3E0RaBGoQZ2' || root.child('roomMembers').child($room).child(auth.uid).exists())",
         ".write": "auth != null && auth.uid === 'Z6WEsEFSTBbq6eeIF3E0RaBGoQZ2'",
+        "topic": {
+          ".validate": "newData.isString() && newData.val().length <= 80"
+        },
+        "keyTerms": {
+          "$index": {
+            ".validate": "newData.isString() && newData.val().length <= 32"
+          }
+        },
+        "questionCoachEnabled": {
+          ".validate": "newData.isBoolean()"
+        },
+        "followupOpen": {
+          ".validate": "newData.isBoolean()"
+        },
         "colorLocks": {
           "$color": {
             ".write": "auth != null && root.child('roomMembers').child($room).child(auth.uid).exists() && ((!data.exists() && newData.val() === auth.uid) || auth.uid === 'Z6WEsEFSTBbq6eeIF3E0RaBGoQZ2')"
@@ -30,6 +44,16 @@
                     ".write": "auth != null && root.child('roomMembers').child($room).child(auth.uid).exists() && !data.exists() && newData.child('authorId').val() === auth.uid && newData.parent().parent().child('authorId').val() !== auth.uid && ($answer === 'slot-1' || $answer === 'slot-2') && root.child('rooms').child($room).child('phase').val() === 'voting'",
                     ".validate": "newData.hasChildren(['text','authorId','createdAt']) && newData.child('text').isString() && newData.child('text').val().length <= 80"
                   }
+                },
+                "followups": {
+                  "$uid": {
+                    ".write": "auth != null && auth.uid === $uid && root.child('roomMembers').child($room).child(auth.uid).exists() && !data.exists() && data.parent().parent().child('authorId').val() === auth.uid && newData.child('authorId').val() === auth.uid && root.child('rooms').child($room).child('phase').val() === 'presenting' && root.child('rooms').child($room).child('followupOpen').val() === true",
+                    ".validate": "newData.hasChildren(['text','authorId','createdAt'])",
+                    "text": { ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 80" },
+                    "authorId": { ".validate": "newData.val() === auth.uid" },
+                    "createdAt": { ".validate": "newData.isNumber()" },
+                    "$other": { ".validate": false }
+                  }
                 }
               }
             }
@@ -40,7 +64,7 @@
     "roomMembers": {
       "$room": {
         "$uid": {
-          ".read": "auth != null && auth.uid === 'Z6WEsEFSTBbq6eeIF3E0RaBGoQZ2'",
+          ".read": "auth != null && (auth.uid === $uid || auth.uid === 'Z6WEsEFSTBbq6eeIF3E0RaBGoQZ2')",
           ".write": "auth != null && ((auth.uid === $uid && newData.child('joinCode').val() === $room && root.child('rooms').child($room).child('accessMode').val() === 'members-v1' && (!data.exists() || data.child('joinCode').val() === $room)) || auth.uid === 'Z6WEsEFSTBbq6eeIF3E0RaBGoQZ2')"
         }
       }
@@ -57,6 +81,51 @@
         "participants": {
           "$uid": {
             ".write": "auth != null && ((auth.uid === $uid && !data.exists() && newData.hasChildren(['attendance','colorId','joinedAt']) && root.child('roomMembers').child($room).child(auth.uid).exists()) || auth.uid === 'Z6WEsEFSTBbq6eeIF3E0RaBGoQZ2')"
+          }
+        }
+      }
+    },
+    "studentLearning": {
+      "$room": {
+        ".read": "auth != null && auth.uid === 'Z6WEsEFSTBbq6eeIF3E0RaBGoQZ2'",
+        "$uid": {
+          ".read": "auth != null && (auth.uid === $uid || auth.uid === 'Z6WEsEFSTBbq6eeIF3E0RaBGoQZ2')",
+          "questions": {
+            "$question": {
+              ".write": "auth != null && auth.uid === $uid && !data.exists() && root.child('roomMembers').child($room).child(auth.uid).exists() && root.child('rooms').child($room).child('posts').child(newData.child('postId').val()).child('questions').child($question).child('authorId').val() === auth.uid",
+              ".validate": "newData.hasChildren(['postId','helpUsed','refineGoal','createdAt'])",
+              "postId": { ".validate": "newData.isString() && newData.val().length <= 80" },
+              "helpUsed": { ".validate": "newData.isString() && (newData.val() === 'none' || newData.val() === 'starter' || newData.val() === 'ai-hint' || newData.val() === 'ai-example')" },
+              "refineGoal": { ".validate": "newData.isString() && (newData.val() === 'none' || newData.val() === 'clarify' || newData.val() === 'explore')" },
+              "createdAt": { ".validate": "newData.isNumber()" },
+              "$other": { ".validate": false }
+            }
+          },
+          "reflections": {
+            "$question": {
+              ".write": "auth != null && auth.uid === $uid && !data.exists() && !data.parent().exists() && root.child('roomMembers').child($room).child(auth.uid).exists() && root.child('rooms').child($room).child('posts').child(newData.child('postId').val()).child('questions').child($question).child('authorId').val() === auth.uid && root.child('rooms').child($room).child('phase').val() === 'presenting'",
+              ".validate": "newData.hasChildren(['postId','reason','createdAt'])",
+              "postId": { ".validate": "newData.isString() && newData.val().length <= 80" },
+              "reason": { ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 80" },
+              "createdAt": { ".validate": "newData.isNumber()" },
+              "$other": { ".validate": false }
+            }
+          }
+        }
+      }
+    },
+    "usageEvents": {
+      "$room": {
+        ".read": "auth != null && auth.uid === 'Z6WEsEFSTBbq6eeIF3E0RaBGoQZ2'",
+        "$uid": {
+          ".read": "auth != null && (auth.uid === $uid || auth.uid === 'Z6WEsEFSTBbq6eeIF3E0RaBGoQZ2')",
+          "$post": {
+            "$type": {
+              ".write": "auth != null && auth.uid === $uid && !data.exists() && root.child('roomMembers').child($room).child(auth.uid).exists() && root.child('rooms').child($room).child('phase').val() === 'voting' && root.child('rooms').child($room).child('posts').child($post).exists() && ($type === 'starter-open' || $type === 'refine-request' || $type === 'example-open' || $type === 'question-submit')",
+              ".validate": "newData.hasChildren(['createdAt'])",
+              "createdAt": { ".validate": "newData.isNumber()" },
+              "$other": { ".validate": false }
+            }
           }
         }
       }
