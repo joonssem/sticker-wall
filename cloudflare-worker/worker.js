@@ -26,7 +26,7 @@ goal이 clarify이면 원래 궁금함을 유지하며 대상·상황·조건을
 goal이 explore이면 이유·변화·비교·가정·관점·근거 중 현재 질문과 다른 방향 하나만 제안합니다.
 사실 확인 질문과 짧은 질문도 필요한 질문으로 인정합니다. 이미 명확하면 alreadyClear를 true로 합니다.
 칭찬, 점수, 등급, 정답, 사실 해설을 쓰지 않습니다. 입력에 없는 고유 사실을 만들지 않습니다.
-observation, hint, example은 각각 100자 이내의 쉬운 한국어로 씁니다.
+observation은 학생의 질문을 짧게 확인하는 말로 36자 이내, hint는 학생이 바로 떠올려 볼 한 가지로 48자 이내, example은 56자 이내의 쉬운 한국어로 씁니다.
 example은 학생이 그대로 제출할 완성 질문이 아니라, ___ 빈칸이 1개 들어간 질문 뼈대입니다. 학생이 빈칸을 자신의 말로 채울 수 있게 합니다.
 반드시 {"observation":"...","hint":"...","example":"...","alreadyClear":false} 형태의 JSON 하나만 출력합니다.`;
 
@@ -120,9 +120,9 @@ function parseRefineResult(content, exampleFallback = '') {
     const raw = String(content || '').trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
     const value = JSON.parse(raw);
     const result = {
-      observation: text(value?.observation, 100),
-      hint: text(value?.hint, 100),
-      example: text(value?.example, 100),
+      observation: text(value?.observation, 36),
+      hint: text(value?.hint, 48),
+      example: text(value?.example, 56),
       alreadyClear: Boolean(value?.alreadyClear)
     };
     if (!hasSingleBlank(result.example) && hasSingleBlank(exampleFallback)) result.example = exampleFallback;

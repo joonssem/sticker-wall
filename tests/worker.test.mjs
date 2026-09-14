@@ -58,6 +58,15 @@ assert.deepEqual(parseRefineResult('{"observation":"관찰","hint":"대상을 �
   example: '___에 대해 더 자세히 알고 싶은 점은 무엇인가요?',
   alreadyClear: false
 });
+const compactResult = parseRefineResult(JSON.stringify({
+  observation: '가'.repeat(40),
+  hint: '나'.repeat(55),
+  example: `___${'다'.repeat(60)}`,
+  alreadyClear: false
+}));
+assert.equal(compactResult.observation.length, 36);
+assert.equal(compactResult.hint.length, 48);
+assert.equal(compactResult.example.length, 56);
 
 assert.equal((await enforceStudentLimit({}, 'room:student')).status, 503);
 assert.equal(await enforceStudentLimit({
