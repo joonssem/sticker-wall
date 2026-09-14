@@ -2,3 +2,6 @@
 *-export.json
 .tools/
 database-debug.log
+node_modules/
+.claude/
+sticker-wall-publish/
