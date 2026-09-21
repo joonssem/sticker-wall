@@ -85,3 +85,37 @@ h1 { font-size:clamp(1.65rem,5vw,2.4rem); margin:0; letter-spacing:-.06em; } h2 
 @media(max-width:700px){ .timer-badge{margin-left:0;order:3;width:100%;text-align:center} .brand{flex-wrap:wrap} }
 
 @media (pointer:coarse) { .btn{min-height:44px}.color-card{min-height:104px}.demo-nav button{min-height:44px} }
+
+/* 교사 수업 화면: 참여 안내와 질문 코치 토글, 전체 너비 상단 제어막대 */
+.join-code { position:relative; }
+.join-code>span { color:var(--quiet); font-weight:700; }
+.join-info-concealed { min-height:62px; padding:18px 22px; }
+.join-info-concealed>span,.join-info-concealed>strong,.join-info-concealed>button,.join-info-concealed>.room-qr { display:none; }
+.setting-switch { display:inline-flex; grid-template-columns:none; align-items:center; gap:8px; width:max-content; color:var(--ink); font-size:.84rem; font-weight:800; cursor:pointer; user-select:none; }
+.setting-switch input { position:absolute; inline-size:1px; block-size:1px; opacity:0; }
+.switch-track { position:relative; flex:0 0 auto; width:38px; height:22px; border-radius:999px; background:#c9c4d8; transition:background .18s ease; }
+.switch-track::after { content:""; position:absolute; top:3px; left:3px; width:16px; height:16px; border-radius:50%; background:#fff; box-shadow:0 1px 3px #0003; transition:transform .18s ease; }
+.setting-switch input:checked + .switch-track { background:var(--accent); }
+.setting-switch input:checked + .switch-track::after { transform:translateX(16px); }
+.setting-switch input:focus-visible + .switch-track { outline:3px solid #9c91eb; outline-offset:3px; }
+.join-visibility-switch { position:absolute; top:15px; right:16px; }
+.coach-switch { font-size:.9rem; }
+.teacher-coach-setting { margin:0; padding:10px; border:1px solid #e1dcef; }
+.activity-control-bar { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:10px; align-items:stretch; margin:0 0 24px; padding:14px; border:1px solid #d8d1f5; border-radius:18px; background:#f8f6ff; }
+.operation-group { display:flex; flex-wrap:wrap; align-content:flex-start; gap:7px; padding:10px; border:1px solid #e1dcef; border-radius:13px; background:#fff; }
+.operation-label { width:100%; color:#625a82; font-size:.76rem; font-weight:900; }
+.operation-group .btn { min-height:36px; margin:0; padding:8px 10px; font-size:.82rem; }
+.operation-group .phase-btn { flex:1 1 30%; min-width:96px; }
+.operation-group .post-limit-control { display:grid; grid-template-columns:1fr 55px auto; align-items:center; gap:5px; width:100%; margin:0; color:#4d4763; font-size:.76rem; font-weight:800; }
+.operation-group .post-limit-control input { width:55px; padding:6px 7px; }
+.operation-group .timer-setup { margin:0; }
+.operation-group .timer-setup-actions { margin-top:7px; }
+.operation-group p { margin:0; font-size:.78rem; line-height:1.45; }
+.operation-more { min-width:150px; padding:10px; border:1px solid #e1dcef; border-radius:13px; background:#fff; }
+.operation-more summary { color:#4d4763; font-size:.82rem; font-weight:900; cursor:pointer; }
+.operation-more[open] summary { margin-bottom:8px; }
+.operation-more .btn { width:100%; margin:4px 0; padding:8px 10px; font-size:.8rem; }
+.operation-more .muted { margin:7px 0 0; font-size:.75rem; line-height:1.45; }
+.teacher-wall { min-width:0; }
+.spotlight + .shell .activity-control-bar { display:none; }
+@media(max-width:700px){.activity-control-bar{grid-template-columns:1fr;padding:11px}.operation-group .phase-btn{min-width:0}.join-visibility-switch{position:static;justify-self:center;margin-top:8px}.join-info-concealed{min-height:0}.operation-more{min-height:44px}}
