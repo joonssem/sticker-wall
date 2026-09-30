@@ -38,6 +38,7 @@ let aiState={status:'idle',mode:'',result:'',error:'',requestId:0};
 let questionCoachRequestId=0;
 let timerIntervalId=null, timerAlertedFor=null;
 let spotlightClosedId=null, spotlightScale=1;
+let spotlightOpenQuestionId=null;
 let postConfirmAt=0;
 
 function esc(s=""){return String(s).replace(/[&<>\"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));}
@@ -99,11 +100,41 @@ function restoreFocusState(state){
   const el=document.querySelector(state.selector);
   if(!el)return;
   el.value=state.value;
-  el.focus();
+  try{el.focus({preventScroll:true});}catch{el.focus();}
   try{el.setSelectionRange(state.selStart,state.selEnd);}catch{}
+}
+function captureScrollState(){
+  const elements={};
+  const trackedSelectors=['.stickies','.spotlight-questions','.control-grid','.teacher-dashboard','.card'];
+  trackedSelectors.forEach(sel=>{
+    const el=document.querySelector(sel);
+    if(el&&(el.scrollTop>0||el.scrollLeft>0)){
+      elements[sel]={top:el.scrollTop,left:el.scrollLeft};
+    }
+  });
+  return {
+    windowX:window.scrollX||window.pageXOffset||document.documentElement.scrollLeft||0,
+    windowY:window.scrollY||window.pageYOffset||document.documentElement.scrollTop||0,
+    elements
+  };
+}
+function restoreScrollState(state){
+  if(!state)return;
+  const apply=()=>{
+    window.scrollTo(state.windowX,state.windowY);
+    if(state.elements){
+      for(const [sel,pos] of Object.entries(state.elements)){
+        const el=document.querySelector(sel);
+        if(el){el.scrollTop=pos.top;el.scrollLeft=pos.left;}
+      }
+    }
+  };
+  apply();
+  requestAnimationFrame(apply);
 }
 function makeRoomId(){return `STICKER-${crypto.getRandomValues(new Uint32Array(1))[0].toString(36).toUpperCase().slice(0,6)}`;}
 function roomUrl(id){return `${location.pathname}?room=${encodeURIComponent(id)}`;}
+let cachedQrDataUrl=null, cachedQrLocation='';
 async function renderRoomQr(){
   const joinInfo=document.querySelector('.join-code');
   if(joinInfo){
@@ -112,8 +143,9 @@ async function renderRoomQr(){
     document.querySelector('#toggle-join-info').onchange=e=>update(ref(db,`rooms/${ROOM_ID}`),{showJoinInfo:e.target.checked});
   }
   const image=document.querySelector('#room-qr');if(!image)return;
-  queueMicrotask(arrangeTeacherControls);
-  try{const {toDataURL}=await import('https://cdn.jsdelivr.net/npm/qrcode@1.5.4/+esm');image.src=await toDataURL(location.href,{width:220,margin:1,color:{dark:'#222036',light:'#fffdf7'}});}
+  arrangeTeacherControls();
+  if(cachedQrDataUrl&&cachedQrLocation===location.href){image.src=cachedQrDataUrl;return;}
+  try{const {toDataURL}=await import('https://cdn.jsdelivr.net/npm/qrcode@1.5.4/+esm');cachedQrLocation=location.href;cachedQrDataUrl=await toDataURL(location.href,{width:220,margin:1,color:{dark:'#222036',light:'#fffdf7'}});image.src=cachedQrDataUrl;}
   catch{image.alt='QR 코드를 만들지 못했습니다. 학생 링크 복사 버튼을 사용해 주세요.';image.hidden=true;document.querySelector('#room-qr-note').textContent='QR 코드를 만들지 못했어요. 학생 링크 복사 버튼을 사용해 주세요.';}
 }
 function arrangeTeacherControls(){
@@ -179,7 +211,7 @@ function moveSpotlight(delta){
   update(ref(db,`rooms/${ROOM_ID}`),{revealedPostIds:{...(room.revealedPostIds||{}),[nextId]:true},selectedPostId:nextId,phase:'presenting'});
 }
 function spotlightMarkup(){
-  if(room.selectedPostId!==lastSpotlightPostId){lastSpotlightPostId=room.selectedPostId;spotlightClosedId=null;}
+  if(room.selectedPostId!==lastSpotlightPostId){lastSpotlightPostId=room.selectedPostId;spotlightClosedId=null;spotlightOpenQuestionId=null;}
   if(!ROOM_ID||phase()!=='presenting'||!room.selectedPostId)return'';
   if(!room.revealedPostIds?.[room.selectedPostId])return'';
   if(spotlightClosedId===room.selectedPostId)return'';
@@ -189,7 +221,7 @@ function spotlightMarkup(){
   const qEntries=Object.entries(post.questions||{});
   const visibleQ=qEntries.slice(0,4);
   const moreQ=qEntries.length-visibleQ.length;
-  const qHtml=qEntries.length?`<ul class="spotlight-questions">${visibleQ.map(([,q])=>`<li>❔ ${esc(q.text)}${answerCount(q)?` <span class="muted">· 답글 ${answerCount(q)}개</span>`:''}</li>`).join('')}</ul>${moreQ>0?`<p class="muted">그 외 질문 ${moreQ}개는 목록에서 확인하세요.</p>`:''}`:'';
+  const qHtml=qEntries.length?`<ul class="spotlight-questions">${visibleQ.map(([id,q])=>{const answers=Object.values(q.answers||{}),open=spotlightOpenQuestionId===id;return `<li class="${open?'answers-open':''}"><div class="spotlight-question-line">❔ ${esc(q.text)} <button class="spotlight-answer-toggle" data-spotlight-answers="${esc(id)}" aria-expanded="${open}">답글 ${answers.length}개 ${open?'▴':'▾'}</button></div>${open?`<ul class="spotlight-answers">${answers.length?answers.map(answer=>`<li>↳ ${esc(answer.text)}</li>`).join(''):'<li class="empty-answer">아직 답글이 없어요.</li>'}</ul>`:''}</li>`;}).join('')}</ul>${moreQ>0?`<p class="muted">그 외 질문 ${moreQ}개는 목록에서 확인하세요.</p>`:''}`:'';
   let navHtml='';
   if(teacher){
     const posts=spotlightOrder();
@@ -205,6 +237,7 @@ function bindSpotlightControls(){
   document.querySelector('#spotlight-shrink')?.addEventListener('click',()=>{spotlightScale=Math.max(.6,Math.round((spotlightScale-.1)*10)/10);render();});
   document.querySelector('#spotlight-prev')?.addEventListener('click',()=>moveSpotlight(-1));
   document.querySelector('#spotlight-next')?.addEventListener('click',()=>moveSpotlight(1));
+  document.querySelectorAll('[data-spotlight-answers]').forEach(button=>button.addEventListener('click',()=>{const id=button.dataset.spotlightAnswers;spotlightOpenQuestionId=spotlightOpenQuestionId===id?null:id;render();}));
 }
 
 async function boot(){
@@ -345,7 +378,7 @@ function renderDemo(){
   document.querySelector('#enter-code')?.addEventListener('click',()=>{const value=document.querySelector('#demo-code').value.trim().toUpperCase();demoJoinCode=value;if(value==='STICKER-42'){demoScene='join';renderDemo();}else{document.querySelector('#code-message').innerHTML='<p class="error">참여코드를 다시 확인해 주세요.</p>'}});
 }
 function demoSticky(p,reveal){const c=color(p.authorColorId);const qs=Object.values(p.questions||{});return `<article class="sticky public ${reveal?'selected-post':''}" style="background:${reveal?c.hex:'#fff7a5'}"><p>${esc(p.text)}</p><div class="sticky-meta">❔ 질문 ${qs.length}개${reveal?` · ${c.name}${demoShowAttendance?' · 출석 7번':''}`:''}</div><ul class="question-list">${qs.map(q=>`<li>${esc(q.text)}</li>`).join('')}</ul>${demoScene==='vote'?`<form class="question-form" data-demo-question="${p.id}"><input maxlength="80" placeholder="궁금한 점을 적어요" aria-label="질문 내용"><button class="btn" ${demoQuestionCount>=5?'disabled':''}>질문</button></form>`:demoScene==='present'?`<div class="actions"><button class="btn secondary" data-demo-post="${p.id}">이 포스트잇 발표하기</button></div>`:''}</article>`}
-function render(){const focusState=captureFocusState();renderApp();restoreFocusState(focusState);}
+function render(){const focusState=captureFocusState();const scrollState=captureScrollState();renderApp();restoreFocusState(focusState);restoreScrollState(scrollState);}
 function renderApp(){if(!db)return;if(!ROOM_ID){if(teacher){renderTeacherLobby();const main=document.querySelector('.teacher-main');main?.insertAdjacentHTML('afterbegin',aiHelperPanel());bindAiHelper();return;}return renderRoomRequired();}if(teacher){renderTeacher();document.querySelector('.card .topbar')?.insertAdjacentHTML('afterend',aiHelperPanel(true));bindAiHelper();return;}if(!my.colorId)return renderJoin();return renderStudent();}
 function renderTeacherLobby(){const boards=Object.entries(teacherBoards||{}).map(([id,board])=>({id,...board})).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));shell(`<section class="teacher-dashboard"><aside class="teacher-sidebar"><div class="teacher-greeting"><strong>안녕하세요, 선생님</strong><span>새 활동을 열거나, 지난 담벼락을 다시 이어 갈 수 있어요.</span></div><button class="btn secondary teacher-logout" id="logout">로그아웃</button></aside><main class="teacher-main"><div class="teacher-heading"><div><span class="step">교사 전용</span><h2>내가 만든 담벼락</h2></div><button class="btn" id="new-board">＋ 새 담벼락</button></div>${teacherCreateOpen?`<section class="create-board-panel"><div><span class="step">새 담벼락</span><h3>어떤 이야기를 모아 볼까요?</h3><p class="muted">주제와 핵심 낱말은 질문 코치가 수업 맥락을 이해하는 데만 사용해요.</p></div><div class="fields"><label>담벼락 제목 <input id="new-room-title" maxlength="40" value="우리 반의 오늘 생각" placeholder="예: 우리 반 여름의 색"></label><label>발표 주제 <input id="new-room-topic" maxlength="80" placeholder="예: 식물이 자라는 데 필요한 조건"></label><label>핵심 낱말 <input id="new-room-key-terms" maxlength="100" placeholder="예: 햇빛, 물, 온도"></label><label class="checkbox-field"><input id="new-room-question-coach" type="checkbox" checked> 학생 질문 코치 사용</label></div><div id="create-room-message"></div><div class="actions"><button class="btn" id="create-room">담벼락 열기</button><button class="btn secondary" id="cancel-create">취소</button></div></section>`:''}<div class="board-grid"><button class="board-tile new-board-tile" id="new-board-card"><span class="create-sign">＋</span><strong>새 담벼락 만들기</strong><small>참여코드와 QR 코드가 자동으로 만들어져요.</small></button>${boards.map((board,index)=>`<button class="board-tile saved-board theme-${index%4}" data-open-room="${esc(board.id)}"><span class="board-cover"></span><strong>${esc(board.title||'제목 없는 담벼락')}</strong><small>${new Date(board.createdAt||Date.now()).toLocaleDateString('ko-KR')} · 참여코드 ${esc(board.id)}</small><span class="board-more" aria-hidden="true">⋮</span></button>`).join('')}</div>${boards.length?'':'<p class="empty-boards">첫 담벼락을 만들어 학생들과 생각을 모아 보세요.</p>'}</main></section>`);document.querySelector('#logout').onclick=()=>signOut(auth);const openCreate=()=>{teacherCreateOpen=true;renderTeacherLobby();};document.querySelector('#new-board').onclick=openCreate;document.querySelector('#new-board-card').onclick=openCreate;document.querySelector('#cancel-create')?.addEventListener('click',()=>{teacherCreateOpen=false;renderTeacherLobby();});document.querySelector('#create-room')?.addEventListener('click',createRoom);document.querySelectorAll('[data-open-room]').forEach(button=>button.onclick=()=>location.assign(roomUrl(button.dataset.openRoom)));}
 async function createRoom(){const title=document.querySelector('#new-room-title').value.trim()||'우리 반의 오늘 생각',topic=document.querySelector('#new-room-topic')?.value.trim().slice(0,80)||'',keyTerms=String(document.querySelector('#new-room-key-terms')?.value||'').split(',').map(value=>value.trim()).filter(Boolean).slice(0,5),questionCoachEnabled=Boolean(document.querySelector('#new-room-question-coach')?.checked);const msg=document.querySelector('#create-room-message');const id=makeRoomId(),createdAt=Date.now();const roomData={title,topic,keyTerms,questionCoachEnabled,phase:'join',showAttendance:false,maxPosts:MAX_POSTS,minQuestions:0,maxQuestions:MAX_QUESTIONS,createdAt,createdBy:TEACHER_UID};try{if(SECURE_ROOM_ROLLOUT){await update(ref(db),{[`rooms/${id}`]:{...roomData,accessMode:'members-v1'},[`roomInvites/${id}`]:{joinCode:id,createdAt},[`teacherBoards/${TEACHER_UID}/${id}`]:{title,createdAt}});}else{await set(ref(db,`rooms/${id}`),roomData);await set(ref(db,`teacherBoards/${TEACHER_UID}/${id}`),{title,createdAt});}location.assign(roomUrl(id));}catch{msg.innerHTML='<p class="error">담벼락을 만들지 못했어요. Firebase 규칙이 게시되었는지 확인해 주세요.</p>';}}
