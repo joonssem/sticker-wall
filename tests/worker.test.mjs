@@ -41,6 +41,9 @@ assert.deepEqual(input, {
 });
 assert.equal(sanitizeRefineInput({ goal: 'score', question: '질문' }, {}), null);
 assert.equal(sanitizeRefineInput({ goal: 'clarify', question: '' }, {}), null);
+const longTitle = '세종은 농사, 과학, 글자, 나라 밖 정책으로 백성의 삶과 나라를 어떻게 안정시키려 했을까?';
+assert.equal(sanitizeRefineInput({ goal: 'clarify', question: '왜 그랬을까요?' }, { title: longTitle }).context.title, longTitle);
+assert.equal(sanitizeRefineInput({ goal: 'clarify', question: '왜 그랬을까요?' }, { title: '가'.repeat(201) }).context.title.length, 200);
 
 assert.deepEqual(parseRefineResult('{"observation":"이유를 궁금해하고 있어요.","hint":"대상과 장소를 떠올려 보세요.","example":"___에서 관찰했나요?","alreadyClear":false}'), {
   observation: '이유를 궁금해하고 있어요.',

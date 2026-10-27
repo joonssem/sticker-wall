@@ -67,7 +67,7 @@ function sanitizePost(post) {
 
 function sanitizeActivity(activity) {
   return {
-    title: text(activity?.title, 120),
+    title: text(activity?.title, 200),
     topic: text(activity?.topic, 80),
     keyTerms: Array.isArray(activity?.keyTerms) ? activity.keyTerms.slice(0, 5).map(value => text(value, 32)).filter(Boolean) : [],
     phase: ['join', 'writing', 'voting', 'presenting'].includes(activity?.phase) ? activity.phase : 'join',
@@ -97,7 +97,7 @@ function sanitizeRefineInput(body, trustedContext) {
     goal,
     question,
     context: {
-      title: text(trustedContext?.title, 40),
+      title: text(trustedContext?.title, 200),
       topic: text(trustedContext?.topic, 80),
       keyTerms: Array.isArray(trustedContext?.keyTerms) ? trustedContext.keyTerms.slice(0, 5).map(value => text(value, 32)).filter(Boolean) : [],
       postText: text(trustedContext?.postText, 80)
