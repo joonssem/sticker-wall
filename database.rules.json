@@ -29,7 +29,7 @@
             ".validate": "newData.hasChildren(['authorId','authorColorId','text','createdAt']) && root.child('rooms').child($room).child('colorLocks').child(newData.child('authorColorId').val() + '').val() === newData.child('authorId').val()",
             "text": {
               ".write": "auth != null && root.child('roomMembers').child($room).child(auth.uid).exists() && data.parent().child('authorId').val() === auth.uid && root.child('rooms').child($room).child('phase').val() === 'writing'",
-              ".validate": "newData.isString() && newData.val().length <= 80"
+              ".validate": "newData.isString() && newData.val().length <= 80 && !newData.val().matches(/^(.*[^0-9])?(\\+82[-. ]?0?|0)1[016789][-. ]?[0-9]{3,4}[-. ]?[0-9]{4}([^0-9].*)?$/) && !newData.val().matches(/^(.*[^0-9])?0(2|[3-6][0-9])[-. ][0-9]{3,4}[-. ][0-9]{4}([^0-9].*)?$/) && !newData.val().matches(/^.*[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+\\.[A-Za-z0-9.-]+.*$/)"
             },
             "editedAt": {
               ".write": "auth != null && root.child('roomMembers').child($room).child(auth.uid).exists() && data.parent().child('authorId').val() === auth.uid && root.child('rooms').child($room).child('phase').val() === 'writing'",
@@ -38,21 +38,29 @@
             "questions": {
               "$question": {
                 ".write": "auth != null && root.child('roomMembers').child($room).child(auth.uid).exists() && !data.exists() && newData.child('authorId').val() === auth.uid && root.child('rooms').child($room).child('phase').val() === 'voting'",
-                ".validate": "newData.hasChildren(['text','authorId','createdAt']) && newData.child('text').isString() && newData.child('text').val().length <= 80",
+                ".validate": "newData.hasChildren(['text','authorId','createdAt']) && newData.child('text').isString() && newData.child('text').val().length <= 80 && !newData.child('text').val().matches(/^(.*[^0-9])?(\\+82[-. ]?0?|0)1[016789][-. ]?[0-9]{3,4}[-. ]?[0-9]{4}([^0-9].*)?$/) && !newData.child('text').val().matches(/^(.*[^0-9])?0(2|[3-6][0-9])[-. ][0-9]{3,4}[-. ][0-9]{4}([^0-9].*)?$/) && !newData.child('text').val().matches(/^.*[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+\\.[A-Za-z0-9.-]+.*$/)",
                 "answers": {
                   "$answer": {
                     ".write": "auth != null && root.child('roomMembers').child($room).child(auth.uid).exists() && !data.exists() && newData.child('authorId').val() === auth.uid && newData.parent().parent().child('authorId').val() !== auth.uid && ($answer === 'slot-1' || $answer === 'slot-2') && root.child('rooms').child($room).child('phase').val() === 'voting'",
-                    ".validate": "newData.hasChildren(['text','authorId','createdAt']) && newData.child('text').isString() && newData.child('text').val().length <= 80"
+                    ".validate": "newData.hasChildren(['text','authorId','createdAt']) && newData.child('text').isString() && newData.child('text').val().length <= 80 && !newData.child('text').val().matches(/^(.*[^0-9])?(\\+82[-. ]?0?|0)1[016789][-. ]?[0-9]{3,4}[-. ]?[0-9]{4}([^0-9].*)?$/) && !newData.child('text').val().matches(/^(.*[^0-9])?0(2|[3-6][0-9])[-. ][0-9]{3,4}[-. ][0-9]{4}([^0-9].*)?$/) && !newData.child('text').val().matches(/^.*[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+\\.[A-Za-z0-9.-]+.*$/)"
                   }
                 },
                 "followups": {
                   "$uid": {
                     ".write": "auth != null && auth.uid === $uid && root.child('roomMembers').child($room).child(auth.uid).exists() && !data.exists() && data.parent().parent().child('authorId').val() === auth.uid && newData.child('authorId').val() === auth.uid && root.child('rooms').child($room).child('phase').val() === 'presenting' && root.child('rooms').child($room).child('followupOpen').val() === true",
                     ".validate": "newData.hasChildren(['text','authorId','createdAt'])",
-                    "text": { ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 80" },
-                    "authorId": { ".validate": "newData.val() === auth.uid" },
-                    "createdAt": { ".validate": "newData.isNumber()" },
-                    "$other": { ".validate": false }
+                    "text": {
+                      ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 80 && !newData.val().matches(/^(.*[^0-9])?(\\+82[-. ]?0?|0)1[016789][-. ]?[0-9]{3,4}[-. ]?[0-9]{4}([^0-9].*)?$/) && !newData.val().matches(/^(.*[^0-9])?0(2|[3-6][0-9])[-. ][0-9]{3,4}[-. ][0-9]{4}([^0-9].*)?$/) && !newData.val().matches(/^.*[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+\\.[A-Za-z0-9.-]+.*$/)"
+                    },
+                    "authorId": {
+                      ".validate": "newData.val() === auth.uid"
+                    },
+                    "createdAt": {
+                      ".validate": "newData.isNumber()"
+                    },
+                    "$other": {
+                      ".validate": false
+                    }
                   }
                 }
               }
@@ -75,66 +83,32 @@
         ".write": "auth != null && auth.uid === 'Z6WEsEFSTBbq6eeIF3E0RaBGoQZ2'"
       }
     },
-    "teacherRecords": {
-      "$room": {
-        ".read": "auth != null && auth.uid === 'Z6WEsEFSTBbq6eeIF3E0RaBGoQZ2'",
-        "participants": {
-          "$uid": {
-            ".write": "auth != null && ((auth.uid === $uid && !data.exists() && newData.hasChildren(['attendance','colorId','joinedAt']) && root.child('roomMembers').child($room).child(auth.uid).exists()) || auth.uid === 'Z6WEsEFSTBbq6eeIF3E0RaBGoQZ2')"
-          }
-        }
-      }
-    },
-    "studentLearning": {
-      "$room": {
-        ".read": "auth != null && auth.uid === 'Z6WEsEFSTBbq6eeIF3E0RaBGoQZ2'",
-        "$uid": {
-          ".read": "auth != null && (auth.uid === $uid || auth.uid === 'Z6WEsEFSTBbq6eeIF3E0RaBGoQZ2')",
-          "questions": {
-            "$question": {
-              ".write": "auth != null && auth.uid === $uid && !data.exists() && root.child('roomMembers').child($room).child(auth.uid).exists() && root.child('rooms').child($room).child('posts').child(newData.child('postId').val()).child('questions').child($question).child('authorId').val() === auth.uid",
-              ".validate": "newData.hasChildren(['postId','helpUsed','refineGoal','createdAt'])",
-              "postId": { ".validate": "newData.isString() && newData.val().length <= 80" },
-              "helpUsed": { ".validate": "newData.isString() && (newData.val() === 'none' || newData.val() === 'starter' || newData.val() === 'ai-hint' || newData.val() === 'ai-example')" },
-              "refineGoal": { ".validate": "newData.isString() && (newData.val() === 'none' || newData.val() === 'clarify' || newData.val() === 'explore')" },
-              "createdAt": { ".validate": "newData.isNumber()" },
-              "$other": { ".validate": false }
-            }
-          },
-          "reflections": {
-            "$question": {
-              ".write": "auth != null && auth.uid === $uid && !data.exists() && !data.parent().exists() && root.child('roomMembers').child($room).child(auth.uid).exists() && root.child('rooms').child($room).child('posts').child(newData.child('postId').val()).child('questions').child($question).child('authorId').val() === auth.uid && root.child('rooms').child($room).child('phase').val() === 'presenting'",
-              ".validate": "newData.hasChildren(['postId','reason','createdAt'])",
-              "postId": { ".validate": "newData.isString() && newData.val().length <= 80" },
-              "reason": { ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 80" },
-              "createdAt": { ".validate": "newData.isNumber()" },
-              "$other": { ".validate": false }
-            }
-          }
-        }
-      }
-    },
-    "usageEvents": {
-      "$room": {
-        ".read": "auth != null && auth.uid === 'Z6WEsEFSTBbq6eeIF3E0RaBGoQZ2'",
-        "$uid": {
-          ".read": "auth != null && (auth.uid === $uid || auth.uid === 'Z6WEsEFSTBbq6eeIF3E0RaBGoQZ2')",
-          "$post": {
-            "$type": {
-              ".write": "auth != null && auth.uid === $uid && !data.exists() && root.child('roomMembers').child($room).child(auth.uid).exists() && root.child('rooms').child($room).child('phase').val() === 'voting' && root.child('rooms').child($room).child('posts').child($post).exists() && ($type === 'starter-open' || $type === 'refine-request' || $type === 'example-open' || $type === 'question-submit')",
-              ".validate": "newData.hasChildren(['createdAt'])",
-              "createdAt": { ".validate": "newData.isNumber()" },
-              "$other": { ".validate": false }
-            }
-          }
-        }
-      }
-    },
     "teacherBoards": {
       "$uid": {
         ".read": "auth != null && auth.uid === 'Z6WEsEFSTBbq6eeIF3E0RaBGoQZ2' && auth.uid === $uid",
         "$room": {
           ".write": "auth != null && auth.uid === 'Z6WEsEFSTBbq6eeIF3E0RaBGoQZ2' && auth.uid === $uid"
+        }
+      }
+    },
+    "reflections": {
+      "$room": {
+        ".read": "auth != null && auth.uid === 'Z6WEsEFSTBbq6eeIF3E0RaBGoQZ2'",
+        "$post": {
+          "$question": {
+            ".read": "auth != null && (auth.uid === 'Z6WEsEFSTBbq6eeIF3E0RaBGoQZ2' || root.child('rooms').child($room).child('posts').child($post).child('questions').child($question).child('authorId').val() === auth.uid)",
+            ".write": "auth != null && !data.exists() && root.child('roomMembers').child($room).child(auth.uid).exists() && root.child('rooms').child($room).child('posts').child($post).child('questions').child($question).child('authorId').val() === auth.uid && root.child('rooms').child($room).child('phase').val() === 'presenting'",
+            ".validate": "newData.hasChildren(['reason','createdAt'])",
+            "reason": {
+              ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 80 && !newData.val().matches(/^(.*[^0-9])?(\\+82[-. ]?0?|0)1[016789][-. ]?[0-9]{3,4}[-. ]?[0-9]{4}([^0-9].*)?$/) && !newData.val().matches(/^(.*[^0-9])?0(2|[3-6][0-9])[-. ][0-9]{3,4}[-. ][0-9]{4}([^0-9].*)?$/) && !newData.val().matches(/^.*[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+\\.[A-Za-z0-9.-]+.*$/)"
+            },
+            "createdAt": {
+              ".validate": "newData.isNumber()"
+            },
+            "$other": {
+              ".validate": false
+            }
+          }
         }
       }
     }
